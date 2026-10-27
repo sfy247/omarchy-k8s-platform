@@ -1,7 +1,7 @@
-nameOverride: hello-node
+nameOverride: node
 
 image:
-  repository: hello-node
+  repository: hello-world-node
   tag: "0.1.0"
 
 service:

@@ -2,7 +2,7 @@ nameOverride: ""
 replicaCount: 1
 
 image:
-  repository: hello-app
+  repository: web-service
   tag: "0.1.0"
   # Images are side-loaded into kind, so never pull from a registry
   pullPolicy: IfNotPresent

@@ -1,7 +1,7 @@
-nameOverride: hello-java
+nameOverride: java
 
 image:
-  repository: hello-java
+  repository: hello-world-java
   tag: "0.1.0"
 
 service:

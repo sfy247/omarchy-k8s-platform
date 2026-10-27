@@ -1,0 +1,33 @@
+# One env-<name> app per worker cluster registered in Argo CD with an
+# "environment" label. Registering a cluster is what enables its environment.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: environments
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - clusters:
+        selector:
+          matchExpressions:
+            - { key: environment, operator: Exists }
+  template:
+    metadata:
+      name: 'env-{{.metadata.labels.environment}}'
+    spec:
+      project: platform
+      source:
+        repoURL: https://github.com/sfy247/omarchy-k8s-platform.git
+        targetRevision: main
+        path: 'environments/{{.metadata.labels.environment}}'
+        directory:
+          recurse: true
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: argocd
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true

@@ -1,20 +1,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "hello-app.name" . }}
+  name: {{ include "web-service.name" . }}
   labels:
-    {{- include "hello-app.labels" . | nindent 4 }}
+    {{- include "web-service.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      {{- include "hello-app.selectorLabels" . | nindent 6 }}
+      {{- include "web-service.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "hello-app.labels" . | nindent 8 }}
+        {{- include "web-service.labels" . | nindent 8 }}
     spec:
-      serviceAccountName: {{ include "hello-app.name" . }}
+      serviceAccountName: {{ include "web-service.name" . }}
       automountServiceAccountToken: false
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}

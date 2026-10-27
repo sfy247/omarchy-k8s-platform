@@ -1,0 +1,31 @@
+# Projects for the hub's own GitOps plumbing.
+---
+# Used by the root app and the env-<name> apps. They may only create Argo CD
+# AppProjects and ApplicationSets in the argocd namespace, nothing else.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: platform
+  namespace: argocd
+spec:
+  description: GitOps plumbing (projects and ApplicationSets)
+  sourceRepos:
+    - https://github.com/sfy247/omarchy-k8s-platform.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: argocd
+  clusterResourceWhitelist: []
+  namespaceResourceWhitelist:
+    - { group: argoproj.io, kind: AppProject }
+    - { group: argoproj.io, kind: ApplicationSet }
+---
+# Argo CD's built-in project allows any repo, destination and resource.
+# Empty it so every app has to use a scoped project.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: default
+  namespace: argocd
+spec:
+  sourceRepos: []
+  destinations: []

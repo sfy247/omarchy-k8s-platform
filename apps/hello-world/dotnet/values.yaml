@@ -1,7 +1,7 @@
-nameOverride: hello-dotnet
+nameOverride: dotnet
 
 image:
-  repository: hello-dotnet
+  repository: hello-world-dotnet
   tag: "0.1.0"
 
 service:

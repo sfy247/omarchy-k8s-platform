@@ -1,0 +1,49 @@
+# One app per apps/hello-world/<name>, deployed to the staging cluster.
+# Values: apps/hello-world/<name>/values.yaml, then values-staging.yaml if present.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: hello-world-staging
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - git:
+        repoURL: https://github.com/sfy247/omarchy-k8s-platform.git
+        revision: main
+        directories:
+          - path: apps/hello-world/*
+  template:
+    metadata:
+      name: 'hello-world-{{.path.basename}}-staging'
+      labels:
+        app.kubernetes.io/part-of: hello-world
+        environment: staging
+    spec:
+      project: hello-world-staging
+      source:
+        repoURL: https://github.com/sfy247/omarchy-k8s-platform.git
+        targetRevision: main
+        path: charts/web-service
+        helm:
+          releaseName: '{{.path.basename}}'
+          valueFiles:
+            - '../../{{.path.path}}/values.yaml'
+            - '../../{{.path.path}}/values-staging.yaml'
+          ignoreMissingValueFiles: true
+      destination:
+        name: staging
+        namespace: hello-world
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+        managedNamespaceMetadata:
+          labels:
+            # Pod Security Admission: reject any pod that is not fully hardened
+            pod-security.kubernetes.io/enforce: restricted
+            pod-security.kubernetes.io/enforce-version: latest
+            pod-security.kubernetes.io/warn: restricted

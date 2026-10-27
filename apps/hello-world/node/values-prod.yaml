@@ -1,0 +1,2 @@
+# prod overrides (merged over values.yaml)
+replicaCount: 2
