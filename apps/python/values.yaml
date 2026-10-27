@@ -1,0 +1,8 @@
+nameOverride: hello-python
+
+image:
+  repository: hello-python
+  tag: "0.1.0"
+
+service:
+  nodePort: 30001

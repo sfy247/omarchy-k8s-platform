@@ -1,0 +1,37 @@
+# One Application per directory under apps/ — add a folder, get an app
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: hello-apps
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - git:
+        repoURL: https://github.com/sfy247/omarchy-k8s-platform.git
+        revision: main
+        directories:
+          - path: apps/*
+  template:
+    metadata:
+      name: 'hello-{{.path.basename}}'
+      labels:
+        app.kubernetes.io/part-of: hello-apps
+    spec:
+      project: hello
+      source:
+        repoURL: https://github.com/sfy247/omarchy-k8s-platform.git
+        targetRevision: main
+        path: charts/hello-app
+        helm:
+          releaseName: 'hello-{{.path.basename}}'
+          valueFiles:
+            - '../../apps/{{.path.basename}}/values.yaml'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: hello-apps
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true

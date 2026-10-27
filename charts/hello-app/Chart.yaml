@@ -1,0 +1,6 @@
+apiVersion: v2
+name: hello-app
+description: Generic hardened chart for the hello-world services
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

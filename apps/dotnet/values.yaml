@@ -1,0 +1,12 @@
+nameOverride: hello-dotnet
+
+image:
+  repository: hello-dotnet
+  tag: "0.1.0"
+
+service:
+  nodePort: 30002
+
+resources:
+  requests: { cpu: 50m, memory: 64Mi }
+  limits: { memory: 192Mi }

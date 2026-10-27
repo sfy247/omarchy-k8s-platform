@@ -1,0 +1,12 @@
+nameOverride: hello-java
+
+image:
+  repository: hello-java
+  tag: "0.1.0"
+
+service:
+  nodePort: 30004
+
+resources:
+  requests: { cpu: 50m, memory: 128Mi }
+  limits: { memory: 256Mi }

@@ -1,0 +1,21 @@
+# Least-privilege project: one repo, one namespace, namespaced kinds only
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: hello
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  description: Hello-world services
+  sourceRepos:
+    - https://github.com/sfy247/omarchy-k8s-platform.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: hello-apps
+  clusterResourceWhitelist: []
+  namespaceResourceWhitelist:
+    - { group: "", kind: Service }
+    - { group: "", kind: ServiceAccount }
+    - { group: apps, kind: Deployment }
+    - { group: networking.k8s.io, kind: NetworkPolicy }
