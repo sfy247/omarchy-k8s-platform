@@ -1,0 +1,26 @@
+# Listener hostname, e.g. "*.dev.<domain>" on a worker or "argocd.<domain>" on
+# the hub. Supplied per cluster by Argo CD from the cluster's annotations.
+hostname: ""
+
+gatewayName: shared
+gatewayClassName: envoy
+envoyNamespace: envoy-gateway-system
+
+# NodePorts the Envoy service uses; kind maps the cluster's own loopback IP
+# :80/:443 onto these
+nodePorts:
+  http: 31080
+  https: 31443
+
+# cert-manager ClusterIssuer backed by the lab CA. The CA key pair is written
+# into cert-manager/<caSecretName> by the provisioning tooling, never by Git.
+issuer:
+  name: lab-ca
+  caSecretName: lab-ca
+
+# Route argocd-server through this gateway (hub only)
+argocdRoute:
+  enabled: false
+  namespace: argocd
+  service: argocd-server
+  port: 80

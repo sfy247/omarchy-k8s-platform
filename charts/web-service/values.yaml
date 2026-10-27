@@ -35,3 +35,12 @@ securityContext:
 
 networkPolicy:
   enabled: true
+
+# Expose through the cluster's shared Gateway (cluster-addons/gateway)
+route:
+  enabled: false
+  hostname: ""          # set per environment by the ApplicationSet
+  gateway:
+    name: shared
+    namespace: gateway
+    sectionName: https

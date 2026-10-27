@@ -1,4 +1,6 @@
-# One app per apps/hello-world/<name>, deployed to the prod cluster.
+# One app per apps/hello-world/<name>, deployed to the cluster registered with
+# environment=prod. Hostnames come from that cluster's lab/domain annotation,
+# so no domain is hard-coded here.
 # Values: apps/hello-world/<name>/values.yaml, then values-prod.yaml if present.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
@@ -9,11 +11,17 @@ spec:
   goTemplate: true
   goTemplateOptions: ["missingkey=error"]
   generators:
-    - git:
-        repoURL: https://github.com/sfy247/omarchy-k8s-platform.git
-        revision: main
-        directories:
-          - path: apps/hello-world/*
+    - matrix:
+        generators:
+          - clusters:
+              selector:
+                matchLabels:
+                  environment: prod
+          - git:
+              repoURL: https://github.com/sfy247/omarchy-k8s-platform.git
+              revision: main
+              directories:
+                - path: apps/hello-world/*
   template:
     metadata:
       name: 'hello-world-{{.path.basename}}-prod'
@@ -32,8 +40,13 @@ spec:
             - '../../{{.path.path}}/values.yaml'
             - '../../{{.path.path}}/values-prod.yaml'
           ignoreMissingValueFiles: true
+          parameters:
+            - name: route.enabled
+              value: "true"
+            - name: route.hostname
+              value: '{{.path.basename}}.{{index .metadata.annotations "lab/domain"}}'
       destination:
-        name: prod
+        name: '{{.name}}'
         namespace: hello-world
       syncPolicy:
         automated:

@@ -7,7 +7,8 @@ environments show up in one Argo CD view.
 ```
 hub cluster (mgmt): Argo CD
   root                              app of apps -> bootstrap/
-   ├─ AppProjects platform, default (locked down)
+   ├─ AppProjects platform, default (locked down), cluster-addons
+   ├─ ApplicationSets cert-manager, envoy-gateway, gateway   on every cluster (hub + workers)
    └─ ApplicationSet environments   one app per registered worker cluster
         ├─ env-dev      -> environments/dev/
         │    └─ ApplicationSet hello-world-dev -> hello-world-<app>-dev  ──> dev cluster
@@ -19,13 +20,31 @@ hub cluster (mgmt): Argo CD
 
 | Path | What lives there |
 |---|---|
-| `bootstrap/` | Hub plumbing the root app syncs: the `platform` project and the `environments` ApplicationSet |
+| `bootstrap/` | Hub plumbing the root app syncs: projects, the `environments` ApplicationSet, and `cluster-addons.yaml` (add-on versions pinned there) |
+| `cluster-addons/gateway/` | Per-cluster HTTPS entry point: Envoy Gateway, wildcard certificate, HTTP→HTTPS redirect |
 | `environments/<env>/<group>/` | Per environment and app group: an AppProject and an ApplicationSet targeting that env's cluster |
 | `apps/<group>/<app>/` | Source, Dockerfile, `values.yaml` (base) and optional `values-<env>.yaml` overrides |
 | `charts/web-service/` | Reusable, hardened Helm chart every app is deployed with |
 
 An environment is enabled by registering its cluster in Argo CD with an
 `environment=<name>` label. Unregistered environments get no apps.
+
+## DNS and TLS
+
+Each app is served at `https://<app>.<env>.<domain>`, and Argo CD at
+`https://argocd.<domain>`. **This repo contains no domain, hostname or port.**
+The provisioning tooling writes them as annotations on each cluster's Argo CD
+registration, and the ApplicationSets read them from there:
+
+| Annotation | Example | Used for |
+|---|---|---|
+| `lab/domain` | `dev.<domain>` | App hostnames (`<app>.<lab/domain>`) |
+| `lab/gateway-hostname` | `*.dev.<domain>` | Gateway listener and certificate |
+| `lab/gateway-http-nodeport`, `lab/gateway-https-nodeport` | `31080`, `31443` | Envoy NodePorts |
+| `lab/argocd-route` | `true` on the hub | Route Argo CD through the gateway |
+
+Certificates come from cert-manager, issued by a local CA. The CA's key is put
+into each cluster by the provisioning tooling and never stored in Git.
 
 ## Security defaults
 
@@ -38,17 +57,23 @@ An environment is enabled by registering its cluster in Argo CD with an
   dropped, no privilege escalation, `RuntimeDefault` seccomp, no
   service-account token. The .NET image is chiseled (no shell).
 - **Network:** one NetworkPolicy per app, allowing HTTP in and DNS out only.
+- **TLS:** HTTPS everywhere; plain HTTP only redirects. The lab CA is
+  name-constrained to the lab domain, so trusting it can't expose other sites.
+- **Add-ons:** the `cluster-addons` project can create cluster-scoped kinds
+  (CRDs, webhooks), but only into its own namespaces.
 
 ## Endpoints
 
 | | dev | staging | prod |
 |---|---|---|---|
-| Python | :30001 | :30101 | :30201 |
-| .NET | :30002 | :30102 | :30202 |
-| Node | :30003 | :30103 | :30203 |
-| Java | :30004 | :30104 | :30204 |
+| Python | `https://python.dev.<domain>` | `https://python.staging.<domain>` | `https://python.prod.<domain>` |
+| .NET | `https://dotnet.dev.<domain>` | … | … |
+| Node | `https://node.dev.<domain>` | … | … |
+| Java | `https://java.dev.<domain>` | … | … |
 
-Argo CD (all environments): http://localhost:30080
+Argo CD (all environments): `https://argocd.<domain>`. Raw NodePorts are also
+published on 127.0.0.1 for debugging: dev 30001+, staging 30101+, prod 30201+,
+and Argo CD on 30080.
 
 ## Common changes
 

@@ -1,0 +1,136 @@
+# Cluster add-ons installed on every cluster registered with addons=enabled
+# (the hub and each environment). Add-on versions are pinned here, in one place.
+#
+# Per-cluster settings come from the cluster's Argo CD annotations, written by
+# the provisioning tooling, so no domain, hostname or port is hard-coded:
+#   lab/gateway-hostname         listener hostname (wildcard on workers)
+#   lab/gateway-http-nodeport    Envoy NodePorts kind maps :80/:443 onto
+#   lab/gateway-https-nodeport
+#   lab/argocd-route             "true" on the hub: route Argo CD through the gateway
+---
+# Add-ons are cluster infrastructure (CRDs, webhooks, cluster roles), so this
+# project can create cluster-scoped kinds, but only in its own namespaces.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: cluster-addons
+  namespace: argocd
+spec:
+  description: Per-cluster infrastructure (cert-manager, Envoy Gateway, shared Gateway)
+  sourceRepos:
+    - https://github.com/sfy247/omarchy-k8s-platform.git
+    - https://charts.jetstack.io
+    - oci://docker.io/envoyproxy/gateway-helm
+  destinations:
+    - { name: "*", namespace: cert-manager }
+    - { name: "*", namespace: kube-system }   # cert-manager leader election
+    - { name: "*", namespace: envoy-gateway-system }
+    - { name: "*", namespace: gateway }
+    - { name: "*", namespace: argocd }        # Argo CD HTTPRoute on the hub
+  clusterResourceWhitelist:
+    - { group: "*", kind: "*" }
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: cert-manager
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - clusters:
+        selector:
+          matchLabels: { addons: enabled }
+  template:
+    metadata:
+      name: 'cert-manager-{{.name}}'
+      labels: { app.kubernetes.io/part-of: cluster-addons }
+    spec:
+      project: cluster-addons
+      source:
+        repoURL: https://charts.jetstack.io
+        chart: cert-manager
+        targetRevision: v1.21.3
+        helm:
+          valuesObject:
+            crds:
+              enabled: true
+      destination:
+        name: '{{.name}}'
+        namespace: cert-manager
+      syncPolicy:
+        automated: { prune: true, selfHeal: true }
+        syncOptions: [CreateNamespace=true, ServerSideApply=true]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: envoy-gateway
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - clusters:
+        selector:
+          matchLabels: { addons: enabled }
+  template:
+    metadata:
+      name: 'envoy-gateway-{{.name}}'
+      labels: { app.kubernetes.io/part-of: cluster-addons }
+    spec:
+      project: cluster-addons
+      source:
+        repoURL: oci://docker.io/envoyproxy/gateway-helm
+        targetRevision: 1.9.3
+        path: .
+      destination:
+        name: '{{.name}}'
+        namespace: envoy-gateway-system
+      syncPolicy:
+        automated: { prune: true, selfHeal: true }
+        syncOptions: [CreateNamespace=true, ServerSideApply=true]
+---
+# Needs the CRDs from the two apps above; retries until they exist
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: gateway
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - clusters:
+        selector:
+          matchLabels: { addons: enabled }
+  template:
+    metadata:
+      name: 'gateway-{{.name}}'
+      labels: { app.kubernetes.io/part-of: cluster-addons }
+    spec:
+      project: cluster-addons
+      source:
+        repoURL: https://github.com/sfy247/omarchy-k8s-platform.git
+        targetRevision: main
+        path: cluster-addons/gateway
+        helm:
+          parameters:
+            - name: hostname
+              value: '{{index .metadata.annotations "lab/gateway-hostname"}}'
+            - name: nodePorts.http
+              value: '{{index .metadata.annotations "lab/gateway-http-nodeport"}}'
+            - name: nodePorts.https
+              value: '{{index .metadata.annotations "lab/gateway-https-nodeport"}}'
+            - name: argocdRoute.enabled
+              value: '{{index .metadata.annotations "lab/argocd-route"}}'
+      destination:
+        name: '{{.name}}'
+        namespace: gateway
+      syncPolicy:
+        automated: { prune: true, selfHeal: true }
+        syncOptions: [CreateNamespace=true, SkipDryRunOnMissingResource=true]
+        retry:
+          limit: 20
+          backoff: { duration: 10s, factor: 2, maxDuration: 3m }
