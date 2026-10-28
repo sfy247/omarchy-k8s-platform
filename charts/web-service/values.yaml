@@ -44,3 +44,15 @@ route:
     name: shared
     namespace: gateway
     sectionName: https
+
+# Own PostgreSQL database. The provisioning tooling creates the database, role
+# and the <name>-db Secret (libpq env: PGHOST, PGUSER, DATABASE_URL, ...).
+database:
+  enabled: false
+  # Where the shared Postgres runs (for the egress NetworkPolicy)
+  namespace: postgres
+  cluster: postgres
+  port: 5432
+  clientLabel:
+    key: lab/postgres-client
+    value: "true"

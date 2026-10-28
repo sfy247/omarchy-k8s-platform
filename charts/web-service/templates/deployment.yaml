@@ -13,6 +13,9 @@ spec:
     metadata:
       labels:
         {{- include "web-service.labels" . | nindent 8 }}
+        {{- if .Values.database.enabled }}
+        {{ .Values.database.clientLabel.key }}: {{ .Values.database.clientLabel.value | quote }}
+        {{- end }}
     spec:
       serviceAccountName: {{ include "web-service.name" . }}
       automountServiceAccountToken: false
@@ -25,6 +28,14 @@ spec:
           env:
             - name: PORT
               value: {{ .Values.containerPort | quote }}
+          {{- if .Values.database.enabled }}
+          # Written by the provisioning tooling; optional so the pod can start
+          # before the database exists (it is restarted once it does)
+          envFrom:
+            - secretRef:
+                name: {{ include "web-service.name" . }}-db
+                optional: true
+          {{- end }}
           ports:
             - name: http
               containerPort: {{ .Values.containerPort }}

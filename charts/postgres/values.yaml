@@ -1,0 +1,15 @@
+# Cluster name; the read-write Service is <name>-rw
+name: postgres
+instances: 1
+storage:
+  size: 1Gi
+resources:
+  requests: { cpu: 100m, memory: 256Mi }
+  limits: { memory: 512Mi }
+
+# Pods with this label (in any namespace) may connect on 5432. The web-service
+# chart adds it when an app sets database.enabled.
+clientLabel:
+  key: lab/postgres-client
+  value: "true"
+operatorNamespace: cnpg-system

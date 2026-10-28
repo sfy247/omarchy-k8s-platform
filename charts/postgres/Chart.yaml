@@ -1,0 +1,5 @@
+apiVersion: v2
+name: postgres
+description: Shared PostgreSQL for one environment (CloudNativePG Cluster + NetworkPolicy)
+type: application
+version: 0.1.0

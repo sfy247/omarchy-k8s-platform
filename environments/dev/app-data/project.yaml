@@ -1,0 +1,22 @@
+# Data services shared by dev apps (PostgreSQL today). Least privilege: one repo,
+# the postgres namespace on the dev cluster, CloudNativePG Cluster + NetworkPolicy only
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: app-data-dev
+  namespace: argocd
+spec:
+  description: Data services for dev apps (PostgreSQL)
+  sourceRepos:
+    - https://github.com/sfy247/omarchy-k8s-platform.git
+  destinations:
+    - name: dev
+      namespace: postgres
+  # Only so Argo CD can create the namespace (CreateNamespace=true)
+  clusterResourceWhitelist:
+    - { group: "", kind: Namespace }
+  namespaceResourceWhitelist:
+    - { group: postgresql.cnpg.io, kind: Cluster }
+    - { group: networking.k8s.io, kind: NetworkPolicy }
+  orphanedResources:
+    warn: true

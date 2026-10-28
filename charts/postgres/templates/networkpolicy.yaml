@@ -1,0 +1,24 @@
+# Default-deny for Postgres: replicas, the operator, and labelled app pods only
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Values.name }}
+spec:
+  podSelector:
+    matchLabels:
+      cnpg.io/cluster: {{ .Values.name }}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: {}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.operatorNamespace }}
+    - from:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              {{ .Values.clientLabel.key }}: {{ .Values.clientLabel.value | quote }}
+      ports:
+        - { port: 5432, protocol: TCP }

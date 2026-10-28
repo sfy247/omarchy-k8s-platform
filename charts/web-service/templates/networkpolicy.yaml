@@ -1,5 +1,5 @@
 {{- if .Values.networkPolicy.enabled }}
-# Default-deny for this pod: only HTTP in, only DNS out
+# Default-deny for this pod: only HTTP in; out only DNS (+ Postgres if database.enabled)
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -24,4 +24,15 @@ spec:
       ports:
         - { port: 53, protocol: UDP }
         - { port: 53, protocol: TCP }
+    {{- if .Values.database.enabled }}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.database.namespace }}
+          podSelector:
+            matchLabels:
+              cnpg.io/cluster: {{ .Values.database.cluster }}
+      ports:
+        - { port: {{ .Values.database.port }}, protocol: TCP }
+    {{- end }}
 {{- end }}

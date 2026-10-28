@@ -1,0 +1,51 @@
+# Shared PostgreSQL on the cluster registered with environment=dev.
+# Each app's database and role are created on request by the provisioning tooling.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: app-data-dev
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            environment: dev
+  template:
+    metadata:
+      name: 'postgres-dev'
+      labels:
+        app.kubernetes.io/part-of: app-data
+        environment: dev
+    spec:
+      project: app-data-dev
+      source:
+        repoURL: https://github.com/sfy247/omarchy-k8s-platform.git
+        targetRevision: main
+        path: charts/postgres
+        helm:
+          valuesObject:
+            instances: 1
+            storage:
+              size: 1Gi
+      destination:
+        name: '{{.name}}'
+        namespace: postgres
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          # Cluster CRD comes from the cloudnative-pg add-on; retry until it exists
+          - SkipDryRunOnMissingResource=true
+        retry:
+          limit: 20
+          backoff: { duration: 10s, factor: 2, maxDuration: 3m }
+        managedNamespaceMetadata:
+          labels:
+            pod-security.kubernetes.io/enforce: restricted
+            pod-security.kubernetes.io/enforce-version: latest
+            pod-security.kubernetes.io/warn: restricted

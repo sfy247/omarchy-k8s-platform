@@ -1,0 +1,20 @@
+# Per-app databases and roles are created by the provisioning tooling, not here
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ .Values.name }}
+spec:
+  instances: {{ .Values.instances }}
+  # No remote superuser login; admin work happens over the pod's local socket
+  enableSuperuserAccess: false
+  storage:
+    size: {{ .Values.storage.size }}
+  resources:
+    {{- toYaml .Values.resources | nindent 4 }}
+  postgresql:
+    parameters:
+      password_encryption: scram-sha-256
+    pg_hba:
+      # Network logins: TLS + SCRAM password only; plaintext is refused
+      - hostssl all all all scram-sha-256
+      - hostnossl all all all reject
