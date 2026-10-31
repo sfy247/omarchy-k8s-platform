@@ -1,0 +1,18 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: hello-world-java
+  title: Hello World (Java)
+  description: Example Java service returning a Hello World JSON response
+  annotations:
+    github.com/project-slug: sfy247/omarchy-k8s-platform
+    backstage.io/source-location: url:https://github.com/sfy247/omarchy-k8s-platform/tree/main/apps/hello-world/java
+    # Kubernetes tab: workloads carry this label (web-service chart)
+    backstage.io/kubernetes-label-selector: app.kubernetes.io/name=java
+  tags: [example, java]
+spec:
+  type: service
+  lifecycle: experimental
+  owner: group:default/app-team
+  system: hello-world
+  dependsOn: [resource:default/cluster-dev]

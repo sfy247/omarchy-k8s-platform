@@ -1,0 +1,76 @@
+# The platform's own building blocks
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: cluster-mgmt
+  title: mgmt (hub cluster)
+  description: Runs Argo CD, the developer portal and Image Updater
+spec:
+  type: kubernetes-cluster
+  owner: group:default/platform-team
+  system: developer-platform
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: cluster-dev
+  title: dev cluster
+  description: Worker cluster for the dev environment
+spec:
+  type: kubernetes-cluster
+  owner: group:default/platform-team
+  system: developer-platform
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: argocd
+  title: Argo CD
+  description: Deploys everything in the platform repo to every cluster
+  links:
+    - url: https://github.com/sfy247/omarchy-k8s-platform
+      title: Platform repo
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/platform-team
+  system: developer-platform
+  dependsOn: [resource:default/cluster-mgmt]
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: argocd-image-updater
+  title: Argo CD Image Updater
+  description: Rolls new container images forward by committing tags to Git
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/platform-team
+  system: developer-platform
+  dependsOn: [resource:default/cluster-mgmt, component:default/argocd]
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: gateway
+  title: Gateway (Envoy)
+  description: HTTPS entry point on every cluster, with certificates from the lab CA
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/platform-team
+  system: developer-platform
+  dependsOn: [resource:default/cluster-mgmt, resource:default/cluster-dev]
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: postgres-dev
+  title: PostgreSQL (dev)
+  description: Shared PostgreSQL in dev; each app gets its own database and login
+spec:
+  type: database
+  owner: group:default/platform-team
+  system: app-data
+  dependsOn: [resource:default/cluster-dev]

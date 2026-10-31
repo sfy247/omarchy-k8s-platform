@@ -1,0 +1,18 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: hello-world-node
+  title: Hello World (Node.js)
+  description: Example Node.js service returning a Hello World JSON response
+  annotations:
+    github.com/project-slug: sfy247/omarchy-k8s-platform
+    backstage.io/source-location: url:https://github.com/sfy247/omarchy-k8s-platform/tree/main/apps/hello-world/node
+    # Kubernetes tab: workloads carry this label (web-service chart)
+    backstage.io/kubernetes-label-selector: app.kubernetes.io/name=node
+  tags: [example, node]
+spec:
+  type: service
+  lifecycle: experimental
+  owner: group:default/app-team
+  system: hello-world
+  dependsOn: [resource:default/cluster-dev]

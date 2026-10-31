@@ -1,0 +1,50 @@
+# What the Discover section groups everything into. Each app's own entry
+# lives next to its values: apps/<group>/<app>/catalog-info.yaml.
+apiVersion: backstage.io/v1alpha1
+kind: Domain
+metadata:
+  name: lab
+  title: Lab platform
+  description: Everything running on the omarchy Kubernetes lab
+spec:
+  owner: group:default/platform-team
+---
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: developer-platform
+  title: Developer platform
+  description: Clusters, GitOps, ingress, certificates and the developer portal
+spec:
+  owner: group:default/platform-team
+  domain: lab
+---
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: app-data
+  title: App data
+  description: Shared data services apps connect to (PostgreSQL)
+spec:
+  owner: group:default/platform-team
+  domain: lab
+---
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: hello-world
+  title: Hello World
+  description: Example services in .NET, Java, Node and Python
+spec:
+  owner: group:default/app-team
+  domain: lab
+---
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: services
+  title: Services
+  description: Services created from the developer portal's templates
+spec:
+  owner: group:default/app-team
+  domain: lab
