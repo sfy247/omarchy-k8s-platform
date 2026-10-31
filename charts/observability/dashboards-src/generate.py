@@ -5,6 +5,9 @@ Run from this folder:  python3 generate.py
 Writes ../dashboards/<Folder>/<uid>.json; the chart turns each file into a
 ConfigMap and Grafana's sidecar files it into <Folder>.
 
+"All" in a variable means ".+" (any non-empty value): Loki rejects stream
+selectors that could match an empty label, such as cluster=~".*".
+
 Label conventions every dashboard relies on:
   metrics  cluster, namespace, pod, container, app (apps), route/status/method (HTTP)
   logs     cluster, namespace, app, pod, container, level, service_name, job
@@ -106,21 +109,21 @@ def text(content):
 def prom_var(name, query, label=None, multi=True, include_all=True):
     return {"name": name, "label": label or name.capitalize(), "type": "query", "datasource": PROM,
             "query": {"query": query, "refId": "PromVar"}, "refresh": 2, "sort": 1,
-            "multi": multi, "includeAll": include_all, "allValue": ".*" if include_all else None,
+            "multi": multi, "includeAll": include_all, "allValue": ".+" if include_all else None,
             "current": {"selected": True, "text": "All", "value": "$__all"} if include_all else {}}
 
 
 def loki_var(name, label, stream, title=None):
     return {"name": name, "label": title or name.capitalize(), "type": "query", "datasource": LOKI,
             "query": {"label": label, "stream": stream, "type": 1, "refId": "LokiVar"},
-            "refresh": 2, "sort": 1, "multi": True, "includeAll": True, "allValue": ".*",
+            "refresh": 2, "sort": 1, "multi": True, "includeAll": True, "allValue": ".+",
             "current": {"selected": True, "text": "All", "value": "$__all"}}
 
 
 def custom_var(name, values, label=None):
     opts = [{"text": v, "value": v, "selected": False} for v in values]
     return {"name": name, "label": label or name.capitalize(), "type": "custom", "query": ",".join(values),
-            "multi": True, "includeAll": True, "allValue": ".*", "options": opts,
+            "multi": True, "includeAll": True, "allValue": ".+", "options": opts,
             "current": {"selected": True, "text": "All", "value": "$__all"}}
 
 
