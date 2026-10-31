@@ -3,6 +3,9 @@
 apiVersion: argocd-image-updater.argoproj.io/v1alpha1
 kind: ImageUpdater
 metadata:
+  annotations:
+    # The ImageUpdater CRD is installed by an app synced alongside this one
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
   name: developer-portal
   namespace: argocd
 spec:

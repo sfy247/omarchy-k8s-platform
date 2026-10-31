@@ -31,3 +31,7 @@ spec:
         automated:
           prune: true
           selfHeal: true
+        # Resources whose CRDs arrive from sibling apps settle on a retry
+        retry:
+          limit: 20
+          backoff: { duration: 10s, factor: 2, maxDuration: 3m }
