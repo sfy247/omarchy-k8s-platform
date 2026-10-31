@@ -19,9 +19,18 @@ prometheus.operator.podmonitors "all" {
 // Alloy's own health
 prometheus.exporter.self "alloy" { }
 
+// The exporter labels its targets job="integrations/self"; name it clearly
+discovery.relabel "alloy" {
+  targets = prometheus.exporter.self.alloy.targets
+
+  rule {
+    target_label = "job"
+    replacement  = "integrations/alloy"
+  }
+}
+
 prometheus.scrape "alloy" {
-  targets    = prometheus.exporter.self.alloy.targets
-  job_name   = "integrations/alloy"
+  targets    = discovery.relabel.alloy.output
   forward_to = [prometheus.remote_write.hub.receiver]
 }
 
