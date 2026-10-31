@@ -18,6 +18,10 @@ spec:
                   nodePort: {{ .Values.nodePorts.http }}
                 - port: 443
                   nodePort: {{ .Values.nodePorts.https }}
+                {{- if .Values.ingest.enabled }}
+                - port: {{ .Values.ingest.port }}
+                  nodePort: {{ .Values.ingest.nodePort }}
+                {{- end }}
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: GatewayClass

@@ -2,7 +2,7 @@ nameOverride: dotnet
 
 image:
   repository: hello-world-dotnet
-  tag: "0.1.0"
+  tag: "0.2.0"
 
 service:
   nodePort: 30002
@@ -10,3 +10,7 @@ service:
 resources:
   requests: { cpu: 50m, memory: 64Mi }
   limits: { memory: 192Mi }
+
+# RED metrics at /metrics (see the app source)
+metrics:
+  enabled: true

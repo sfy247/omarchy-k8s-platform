@@ -21,5 +21,6 @@ spec:
     - { group: apps, kind: Deployment }
     - { group: networking.k8s.io, kind: NetworkPolicy }
     - { group: gateway.networking.k8s.io, kind: HTTPRoute }
+    - { group: monitoring.coreos.com, kind: PodMonitor }
   orphanedResources:
     warn: true

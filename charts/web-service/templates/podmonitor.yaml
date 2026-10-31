@@ -1,0 +1,20 @@
+{{- if .Values.metrics.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{ include "web-service.name" . }}
+  labels:
+    {{- include "web-service.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "web-service.selectorLabels" . | nindent 6 }}
+  podMetricsEndpoints:
+    - port: http
+      path: {{ .Values.metrics.path }}
+      interval: {{ .Values.metrics.interval }}
+      # Same `app` label the log pipeline sets, so metrics and logs line up
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
+          targetLabel: app
+{{- end }}

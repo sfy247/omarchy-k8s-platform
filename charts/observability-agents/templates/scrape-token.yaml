@@ -1,0 +1,9 @@
+# Long-lived token for Alloy's ServiceAccount, referenced by the kubelet,
+# API server and CoreDNS ServiceMonitors' authorization
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/service-account-token
+metadata:
+  name: alloy-metrics-token
+  annotations:
+    kubernetes.io/service-account.name: alloy-metrics

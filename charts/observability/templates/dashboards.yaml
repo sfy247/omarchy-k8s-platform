@@ -1,0 +1,16 @@
+{{- /* One ConfigMap per dashboards/<Folder>/<uid>.json; Grafana's sidecar
+       files it into <Folder>. Regenerate with dashboards-src/generate.py. */}}
+{{- range $path, $_ := .Files.Glob "dashboards/*/*.json" }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-{{ base $path | trimSuffix ".json" }}
+  labels:
+    grafana_dashboard: "1"
+  annotations:
+    grafana_folder: {{ base (dir $path) | quote }}
+data:
+  {{ base $path }}: |-
+{{ $.Files.Get $path | indent 4 }}
+{{- end }}

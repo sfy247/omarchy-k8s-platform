@@ -1,0 +1,81 @@
+# Lab alert rules, on top of the kube-prometheus-stack Kubernetes rules.
+# Every alert links to the dashboard that explains it.
+groups:
+  - name: applications
+    rules:
+      - alert: AppHighErrorRate
+        expr: |
+          sum by (cluster, namespace, app) (rate(http_requests_total{status=~"5.."}[5m]))
+            /
+          sum by (cluster, namespace, app) (rate(http_requests_total[5m]))
+            > 0.05
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.app }} ({{ $labels.cluster }}) is failing {{ $value | humanizePercentage }} of requests"
+          description: >-
+            More than 5% of requests to {{ $labels.app }} in {{ $labels.namespace }} returned 5xx for 2 minutes.
+            Check its error logs and recent events on the Service Health dashboard.
+          dashboard_url: "__GRAFANA_URL__/d/service-health?var-cluster={{ $labels.cluster }}&var-namespace={{ $labels.namespace }}&var-app={{ $labels.app }}"
+
+      - alert: AppHighLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum by (cluster, namespace, app, le) (rate(http_request_duration_seconds_bucket[5m]))
+          ) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.app }} ({{ $labels.cluster }}) p95 latency is {{ $value | humanizeDuration }}"
+          description: >-
+            95th-percentile latency for {{ $labels.app }} has been above 1s for 5 minutes. Look for slow routes,
+            CPU throttling, or a slow dependency.
+          dashboard_url: "__GRAFANA_URL__/d/service-health?var-cluster={{ $labels.cluster }}&var-namespace={{ $labels.namespace }}&var-app={{ $labels.app }}"
+
+      - alert: AppTargetDown
+        expr: up{app!=""} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.app }} pod {{ $labels.pod }} ({{ $labels.cluster }}) is not serving metrics"
+          description: >-
+            The metrics endpoint of {{ $labels.pod }} has been unreachable for 2 minutes: the app is down, crash-looping,
+            or the network policy blocks the scrape.
+          dashboard_url: "__GRAFANA_URL__/d/pod-troubleshooting?var-cluster={{ $labels.cluster }}&var-namespace={{ $labels.namespace }}&var-pod={{ $labels.pod }}"
+
+  - name: telemetry-pipeline
+    rules:
+      - alert: AlloyRemoteWriteFailing
+        expr: sum by (cluster) (rate(prometheus_remote_storage_samples_failed_total{job="integrations/alloy"}[5m])) > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Metrics from {{ $labels.cluster }} are failing to reach the hub"
+          description: Alloy in {{ $labels.cluster }} keeps failing to push metrics. Dashboards for that cluster have gaps.
+          dashboard_url: "__GRAFANA_URL__/d/platform-overview?var-cluster={{ $labels.cluster }}"
+
+      - alert: AlloyLogsDropped
+        expr: sum by (cluster) (rate(loki_write_dropped_entries_total[5m])) > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Logs from {{ $labels.cluster }} are being dropped"
+          description: Alloy in {{ $labels.cluster }} is dropping log lines it cannot deliver to Loki.
+          dashboard_url: "__GRAFANA_URL__/d/platform-overview?var-cluster={{ $labels.cluster }}"
+
+      - alert: ClusterStoppedReporting
+        expr: |
+          count by (cluster) (up{job="integrations/alloy"} offset 10m)
+            unless
+          count by (cluster) (up{job="integrations/alloy"})
+        labels:
+          severity: critical
+        annotations:
+          summary: "No telemetry from {{ $labels.cluster }} for at least 10 minutes"
+          description: The cluster's agents stopped reporting. Is the cluster down, or the hub's ingest endpoint unreachable?
+          dashboard_url: "__GRAFANA_URL__/d/platform-overview"

@@ -1,0 +1,208 @@
+# Set per cluster by the ApplicationSet from Argo CD cluster annotations
+grafanaHostname: ""          # e.g. grafana.<domain>
+
+gateway:
+  name: shared
+  namespace: gateway
+  httpsSection: https
+  ingestSection: ingest       # mTLS listener agents push to
+
+# Secrets written by the provisioning tooling
+grafanaSecrets:
+  admin: grafana-admin        # admin-user / admin-password
+  auth: grafana-auth          # GF_AUTH_GITHUB_* (optional: GitHub sign-in)
+
+kube-prometheus-stack:
+  fullnameOverride: kps
+  cleanPrometheusOperatorObjectNames: true
+  crds:
+    enabled: true
+
+  # Rules and dashboards aggregate across clusters by the `cluster` label
+  defaultRules:
+    create: true
+    additionalAggregationLabels: [cluster]
+    rules:
+      # kind runs these components in a way they aren't scraped
+      etcd: false
+      kubeControllerManager: false
+      kubeSchedulerAlerting: false
+      kubeSchedulerRecording: false
+      kubeProxy: false
+      windows: false
+  kubeControllerManager: { enabled: false }
+  kubeScheduler: { enabled: false }
+  kubeEtcd: { enabled: false }
+  kubeProxy: { enabled: false }
+  windowsMonitoring: { enabled: false }
+
+  # Control-plane endpoints are scraped by Alloy with its own ServiceAccount
+  # token (Secret alloy-metrics-token, created by observability-agents)
+  kubelet:
+    serviceMonitor:
+      authorization: &alloyToken
+        type: Bearer
+        credentials: { name: alloy-metrics-token, key: token }
+  kubeApiServer:
+    serviceMonitor:
+      authorization: *alloyToken
+  coreDns:
+    serviceMonitor:
+      authorization: *alloyToken
+  # Exporters and ServiceMonitors for the hub itself. Prometheus does not
+  # scrape them: Alloy does, on every cluster, adding the cluster label.
+  kube-state-metrics:
+    resources:
+      requests: { cpu: 10m, memory: 48Mi }
+      limits: { memory: 128Mi }
+  prometheus-node-exporter:
+    resources:
+      requests: { cpu: 10m, memory: 24Mi }
+      limits: { memory: 64Mi }
+
+  prometheusOperator:
+    resources:
+      requests: { cpu: 20m, memory: 64Mi }
+      limits: { memory: 192Mi }
+
+  prometheus:
+    prometheusSpec:
+      # Central store: receives remote-write from every cluster's Alloy and
+      # evaluates all rules. It scrapes nothing itself (no selector matches).
+      enableRemoteWriteReceiver: true
+      serviceMonitorSelectorNilUsesHelmValues: false
+      serviceMonitorSelector: { matchLabels: { observability.lab/scraped-by: prometheus } }
+      podMonitorSelectorNilUsesHelmValues: false
+      podMonitorSelector: { matchLabels: { observability.lab/scraped-by: prometheus } }
+      probeSelectorNilUsesHelmValues: false
+      probeSelector: { matchLabels: { observability.lab/scraped-by: prometheus } }
+      scrapeConfigSelectorNilUsesHelmValues: false
+      scrapeConfigSelector: { matchLabels: { observability.lab/scraped-by: prometheus } }
+      ruleSelectorNilUsesHelmValues: false
+      ruleSelector: {}
+      ruleNamespaceSelector: {}
+      retention: 7d
+      retentionSize: 8GB
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            accessModes: [ReadWriteOnce]
+            resources: { requests: { storage: 10Gi } }
+      resources:
+        requests: { cpu: 200m, memory: 768Mi }
+        limits: { memory: 2Gi }
+
+  alertmanager:
+    alertmanagerSpec:
+      resources:
+        requests: { cpu: 10m, memory: 32Mi }
+        limits: { memory: 128Mi }
+
+  grafana:
+    fullnameOverride: grafana
+    testFramework:
+      enabled: false
+    defaultDashboardsTimezone: browser
+    # Admin credentials and optional GitHub sign-in come from Secrets
+    admin:
+      existingSecret: grafana-admin
+      userKey: admin-user
+      passwordKey: admin-password
+    envFromSecrets:
+      - name: grafana-auth
+        optional: true
+    persistence:
+      enabled: true
+      size: 1Gi
+    resources:
+      requests: { cpu: 50m, memory: 192Mi }
+      limits: { memory: 512Mi }
+    sidecar:
+      dashboards:
+        enabled: true
+        label: grafana_dashboard
+        searchNamespace: ALL
+        # Folder comes from each dashboard ConfigMap's grafana_folder annotation
+        folderAnnotation: grafana_folder
+        provider:
+          foldersFromFilesStructure: true
+        # Adds a cluster selector to the bundled Kubernetes dashboards
+        multicluster:
+          global:
+            enabled: true
+        annotations:
+          grafana_folder: Kubernetes
+      datasources:
+        enabled: true
+        defaultDatasourceEnabled: true
+        alertmanager:
+          enabled: true
+    additionalDataSources:
+      - name: Loki
+        uid: loki
+        type: loki
+        access: proxy
+        url: http://loki:3100
+        jsonData:
+          maxLines: 2000
+    grafana.ini:
+      analytics:
+        reporting_enabled: false
+        check_for_updates: false
+      users:
+        allow_sign_up: false
+        default_theme: system
+      auth:
+        # GitHub is the way in once grafana-auth is provisioned; the admin
+        # login remains for break-glass access
+        oauth_auto_login: false
+      log:
+        mode: console
+        level: info
+      feature_toggles:
+        enable: kubernetesDashboards
+
+loki:
+  fullnameOverride: loki
+  deploymentMode: SingleBinary
+  loki:
+    auth_enabled: false
+    commonConfig:
+      replication_factor: 1
+    storage:
+      type: filesystem
+    schemaConfig:
+      configs:
+        - from: "2024-01-01"
+          store: tsdb
+          object_store: filesystem
+          schema: v13
+          index: { prefix: index_, period: 24h }
+    limits_config:
+      retention_period: 168h
+      allow_structured_metadata: true
+      volume_enabled: true
+      ingestion_rate_mb: 8
+      ingestion_burst_size_mb: 16
+    compactor:
+      retention_enabled: true
+      delete_request_store: filesystem
+    # Powers Logs Drilldown's pattern detection
+    pattern_ingester:
+      enabled: true
+  singleBinary:
+    replicas: 1
+    persistence:
+      size: 10Gi
+    resources:
+      requests: { cpu: 100m, memory: 256Mi }
+      limits: { memory: 1Gi }
+  read: { replicas: 0 }
+  write: { replicas: 0 }
+  backend: { replicas: 0 }
+  gateway: { enabled: false }
+  chunksCache: { enabled: false }
+  resultsCache: { enabled: false }
+  lokiCanary: { enabled: false }
+  test: { enabled: false }
+  minio: { enabled: false }

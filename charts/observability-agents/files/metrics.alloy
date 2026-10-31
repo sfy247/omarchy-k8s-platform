@@ -1,0 +1,64 @@
+// Metrics and Kubernetes events for one cluster (single instance, so nothing
+// is collected twice). Every series gets cluster="__CLUSTER__".
+
+logging {
+  level  = "info"
+  format = "json"
+}
+
+// Scrape whatever ServiceMonitors / PodMonitors describe, exactly as the
+// Prometheus Operator would, so community dashboards and rules just work
+prometheus.operator.servicemonitors "all" {
+  forward_to = [prometheus.remote_write.hub.receiver]
+}
+
+prometheus.operator.podmonitors "all" {
+  forward_to = [prometheus.remote_write.hub.receiver]
+}
+
+// Alloy's own health
+prometheus.exporter.self "alloy" { }
+
+prometheus.scrape "alloy" {
+  targets    = prometheus.exporter.self.alloy.targets
+  job_name   = "integrations/alloy"
+  forward_to = [prometheus.remote_write.hub.receiver]
+}
+
+prometheus.remote_write "hub" {
+  external_labels = { cluster = "__CLUSTER__" }
+
+  endpoint {
+    url = "__INGEST_URL__/api/v1/write"
+
+    tls_config {
+      ca_file     = "/etc/alloy/tls/ca.crt"
+      cert_file   = "/etc/alloy/tls/tls.crt"
+      key_file    = "/etc/alloy/tls/tls.key"
+      server_name = "__SERVER_NAME__"
+    }
+  }
+}
+
+// Kubernetes events (OOMKilled, BackOff, FailedScheduling, ...) as logs, next
+// to the application logs they explain
+loki.source.kubernetes_events "cluster" {
+  job_name   = "integrations/kubernetes/eventhandler"
+  log_format = "json"
+  forward_to = [loki.write.hub.receiver]
+}
+
+loki.write "hub" {
+  external_labels = { cluster = "__CLUSTER__" }
+
+  endpoint {
+    url = "__INGEST_URL__/loki/api/v1/push"
+
+    tls_config {
+      ca_file     = "/etc/alloy/tls/ca.crt"
+      cert_file   = "/etc/alloy/tls/tls.crt"
+      key_file    = "/etc/alloy/tls/tls.key"
+      server_name = "__SERVER_NAME__"
+    }
+  }
+}

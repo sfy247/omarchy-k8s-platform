@@ -20,6 +20,15 @@ issuer:
   name: lab-ca
   caSecretName: lab-ca
 
+# mTLS listener where observability agents push telemetry (hub only).
+# Reached from other clusters over the kind Docker network at
+# https://<hostname>:<nodePort>; clients need a certificate from the lab CA.
+ingest:
+  enabled: false
+  hostname: ""        # server certificate name, e.g. mgmt-control-plane
+  port: 9443
+  nodePort: 31090
+
 # Route argocd-server through this gateway (hub only)
 argocdRoute:
   enabled: false

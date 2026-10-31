@@ -2,7 +2,11 @@ nameOverride: python
 
 image:
   repository: hello-world-python
-  tag: "0.1.0"
+  tag: "0.2.0"
 
 service:
   nodePort: 30001
+
+# RED metrics at /metrics (see the app source)
+metrics:
+  enabled: true

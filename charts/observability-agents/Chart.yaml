@@ -1,0 +1,23 @@
+apiVersion: v2
+name: observability-agents
+description: >-
+  Telemetry agents for one cluster: Grafana Alloy (metrics + events, and pod
+  logs), plus the standard exporters, pushing to the hub over mTLS with the
+  cluster's name on every series and log line
+type: application
+version: 0.1.0
+dependencies:
+  # Exporters + ServiceMonitors only (no Prometheus/Grafana); off on the hub,
+  # whose backend already runs them
+  - name: kube-prometheus-stack
+    version: 92.16.1
+    repository: https://prometheus-community.github.io/helm-charts
+    condition: exporters.enabled
+  - name: alloy
+    alias: alloy-metrics
+    version: 1.15.0
+    repository: https://grafana.github.io/helm-charts
+  - name: alloy
+    alias: alloy-logs
+    version: 1.15.0
+    repository: https://grafana.github.io/helm-charts

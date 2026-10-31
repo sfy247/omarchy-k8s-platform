@@ -1,0 +1,42 @@
+# Central observability backend on the hub: Prometheus + Alertmanager, Loki,
+# Grafana at https://<lab/grafana-hostname>, and the routes agents push to
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: observability
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - clusters:
+        selector:
+          matchLabels: { hub: "true" }
+  template:
+    metadata:
+      name: 'observability'
+      labels: { app.kubernetes.io/part-of: observability }
+    spec:
+      project: cluster-addons
+      source:
+        repoURL: https://github.com/sfy247/omarchy-k8s-platform.git
+        targetRevision: main
+        path: charts/observability
+        helm:
+          releaseName: observability
+          valuesObject:
+            grafanaHostname: '{{index .metadata.annotations "lab/grafana-hostname"}}'
+            kube-prometheus-stack:
+              grafana:
+                grafana.ini:
+                  server:
+                    root_url: 'https://{{index .metadata.annotations "lab/grafana-hostname"}}'
+      destination:
+        name: '{{.name}}'
+        namespace: observability
+      syncPolicy:
+        automated: { prune: true, selfHeal: true }
+        syncOptions: [CreateNamespace=true, ServerSideApply=true, SkipDryRunOnMissingResource=true]
+        retry:
+          limit: 20
+          backoff: { duration: 10s, factor: 2, maxDuration: 3m }

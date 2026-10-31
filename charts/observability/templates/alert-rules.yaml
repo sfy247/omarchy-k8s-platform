@@ -1,0 +1,8 @@
+{{- /* Rules live in files/ so Prometheus' {{ $labels }} templates aren't
+       mistaken for Helm's; only the Grafana URL is filled in here. */}}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: lab-alerts
+spec:
+{{ .Files.Get "files/alert-rules.yaml" | replace "__GRAFANA_URL__" (printf "https://%s" .Values.grafanaHostname) | indent 2 }}

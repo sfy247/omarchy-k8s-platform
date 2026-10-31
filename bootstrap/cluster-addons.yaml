@@ -8,6 +8,8 @@
 #   lab/gateway-https-nodeport
 #   lab/argocd-route             "true" on the hub: route Argo CD through the gateway
 #   lab/domain                   the cluster's DNS suffix (argocd.<domain> on the hub)
+#   lab/ingest-*                 the hub's mTLS telemetry listener (enabled on the hub)
+#   lab/observability-*          where this cluster's agents push telemetry
 ---
 # Add-ons are cluster infrastructure (CRDs, webhooks, cluster roles), so this
 # project can create cluster-scoped kinds, but only in its own namespaces.
@@ -31,6 +33,7 @@ spec:
     - { name: "*", namespace: gateway }
     - { name: "*", namespace: argocd }        # Argo CD HTTPRoute on the hub
     - { name: "*", namespace: cnpg-system }
+    - { name: "*", namespace: observability }
   clusterResourceWhitelist:
     - { group: "*", kind: "*" }
 ---
@@ -131,6 +134,12 @@ spec:
               value: '{{index .metadata.annotations "lab/argocd-route"}}'
             - name: argocdRoute.hostname
               value: 'argocd.{{index .metadata.annotations "lab/domain"}}'
+            - name: ingest.enabled
+              value: '{{index .metadata.annotations "lab/ingest-enabled"}}'
+            - name: ingest.hostname
+              value: '{{index .metadata.annotations "lab/ingest-hostname"}}'
+            - name: ingest.nodePort
+              value: '{{index .metadata.annotations "lab/ingest-node-port"}}'
       destination:
         name: '{{.name}}'
         namespace: gateway
@@ -171,3 +180,55 @@ spec:
       syncPolicy:
         automated: { prune: true, selfHeal: true }
         syncOptions: [CreateNamespace=true, ServerSideApply=true]
+---
+# Telemetry agents on every cluster (hub included): Alloy + exporters, pushing
+# metrics, logs and events to the hub with cluster=<name>
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: observability-agents
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - clusters:
+        selector:
+          matchLabels: { addons: enabled }
+  template:
+    metadata:
+      name: 'observability-agents-{{.name}}'
+      labels: { app.kubernetes.io/part-of: observability }
+    spec:
+      project: cluster-addons
+      source:
+        repoURL: https://github.com/sfy247/omarchy-k8s-platform.git
+        targetRevision: main
+        path: charts/observability-agents
+        helm:
+          releaseName: observability-agents
+          valuesObject:
+            cluster: '{{.name}}'
+            ingest:
+              url: '{{index .metadata.annotations "lab/observability-ingest-url"}}'
+              serverName: '{{index .metadata.annotations "lab/observability-ingest-server"}}'
+          # --set yields a real boolean; Helm dependency conditions ignore strings.
+          # The hub's backend already runs the exporters.
+          parameters:
+            - name: exporters.enabled
+              value: '{{ ne (index .metadata.annotations "lab/observability-exporters") "false" }}'
+      destination:
+        name: '{{.name}}'
+        namespace: observability
+      syncPolicy:
+        automated: { prune: true, selfHeal: true }
+        syncOptions: [CreateNamespace=true, ServerSideApply=true, SkipDryRunOnMissingResource=true]
+        retry:
+          limit: 20
+          backoff: { duration: 10s, factor: 2, maxDuration: 3m }
+        # node-exporter and log tailing need host access: this namespace is the
+        # documented exception to Pod Security "restricted"
+        managedNamespaceMetadata:
+          labels:
+            pod-security.kubernetes.io/enforce: privileged
+            pod-security.kubernetes.io/warn: baseline

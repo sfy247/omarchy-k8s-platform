@@ -1,0 +1,20 @@
+{{- define "agents.render" -}}
+{{- .file | replace "__CLUSTER__" (required "cluster is required" .root.Values.cluster)
+          | replace "__INGEST_URL__" (required "ingest.url is required" .root.Values.ingest.url)
+          | replace "__SERVER_NAME__" (required "ingest.serverName is required" .root.Values.ingest.serverName) -}}
+{{- end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alloy-metrics-config
+data:
+  config.alloy: |
+{{ include "agents.render" (dict "root" . "file" (.Files.Get "files/metrics.alloy")) | indent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alloy-logs-config
+data:
+  config.alloy: |
+{{ include "agents.render" (dict "root" . "file" (.Files.Get "files/logs.alloy")) | indent 4 }}

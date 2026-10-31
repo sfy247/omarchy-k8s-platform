@@ -1,0 +1,102 @@
+# Set per cluster by the ApplicationSet from Argo CD cluster annotations
+cluster: ""                 # added as cluster=<name> to every series and log line
+ingest:
+  url: ""                   # e.g. https://mgmt-control-plane:31090
+  serverName: ""            # name on the hub's ingest certificate
+
+# Client certificate (mTLS) from the lab CA, via cert-manager
+clientCert:
+  secretName: alloy-client
+  issuer: lab-ca
+
+exporters:
+  enabled: true
+
+kube-prometheus-stack:
+  fullnameOverride: kps
+  cleanPrometheusOperatorObjectNames: true
+  crds:
+    enabled: true
+  # Agent profile: exporters, ServiceMonitors and the operator (which keeps the
+  # kubelet Service current). Storage, rules and Grafana live on the hub.
+  prometheus: { enabled: false }
+  alertmanager: { enabled: false }
+  grafana: { enabled: false }
+  defaultRules: { create: false }
+  kubeControllerManager: { enabled: false }
+  kubeScheduler: { enabled: false }
+  kubeEtcd: { enabled: false }
+  kubeProxy: { enabled: false }
+  windowsMonitoring: { enabled: false }
+  # Control-plane endpoints are scraped by Alloy with its own ServiceAccount
+  # token (Secret alloy-metrics-token, created by observability-agents)
+  kubelet:
+    serviceMonitor:
+      authorization: &alloyToken
+        type: Bearer
+        credentials: { name: alloy-metrics-token, key: token }
+  kubeApiServer:
+    serviceMonitor:
+      authorization: *alloyToken
+  coreDns:
+    serviceMonitor:
+      authorization: *alloyToken
+  prometheusOperator:
+    resources:
+      requests: { cpu: 20m, memory: 64Mi }
+      limits: { memory: 192Mi }
+  kube-state-metrics:
+    resources:
+      requests: { cpu: 10m, memory: 48Mi }
+      limits: { memory: 128Mi }
+  prometheus-node-exporter:
+    resources:
+      requests: { cpu: 10m, memory: 24Mi }
+      limits: { memory: 64Mi }
+
+alloy-metrics:
+  fullnameOverride: alloy-metrics
+  controller:
+    type: deployment
+    replicas: 1
+    volumes:
+      extra:
+        - name: client-cert
+          secret: { secretName: alloy-client }
+  alloy:
+    configMap:
+      create: false
+      name: alloy-metrics-config
+      key: config.alloy
+    enableReporting: false
+    mounts:
+      extra:
+        - { name: client-cert, mountPath: /etc/alloy/tls, readOnly: true }
+    resources:
+      requests: { cpu: 50m, memory: 128Mi }
+      limits: { memory: 512Mi }
+
+alloy-logs:
+  fullnameOverride: alloy-logs
+  controller:
+    type: daemonset
+    volumes:
+      extra:
+        - name: client-cert
+          secret: { secretName: alloy-client }
+  alloy:
+    configMap:
+      create: false
+      name: alloy-logs-config
+      key: config.alloy
+    enableReporting: false
+    mounts:
+      varlog: true
+      extra:
+        - { name: client-cert, mountPath: /etc/alloy/tls, readOnly: true }
+    extraEnv:
+      - name: NODE_NAME
+        valueFrom: { fieldRef: { fieldPath: spec.nodeName } }
+    resources:
+      requests: { cpu: 30m, memory: 64Mi }
+      limits: { memory: 256Mi }

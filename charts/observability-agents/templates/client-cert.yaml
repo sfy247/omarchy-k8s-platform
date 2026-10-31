@@ -1,0 +1,18 @@
+# Identity this cluster's agents present to the hub's ingest endpoint (mTLS)
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ .Values.clientCert.secretName }}
+spec:
+  secretName: {{ .Values.clientCert.secretName }}
+  commonName: alloy-{{ .Values.cluster }}
+  usages: [client auth, digital signature, key encipherment]
+  duration: 2160h
+  renewBefore: 360h
+  issuerRef:
+    kind: ClusterIssuer
+    name: {{ .Values.clientCert.issuer }}
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always

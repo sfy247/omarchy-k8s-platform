@@ -1,0 +1,105 @@
+// Pod logs on this node. Labels stay low-cardinality (cluster, namespace,
+// app, pod, container, level); everything else stays in the log line.
+
+logging {
+  level  = "info"
+  format = "json"
+}
+
+discovery.kubernetes "pods" {
+  role = "pod"
+
+  selectors {
+    role  = "pod"
+    field = "spec.nodeName=" + sys.env("NODE_NAME")
+  }
+}
+
+discovery.relabel "pod_logs" {
+  targets = discovery.kubernetes.pods.targets
+
+  rule {
+    source_labels = ["__meta_kubernetes_namespace"]
+    target_label  = "namespace"
+  }
+  rule {
+    source_labels = ["__meta_kubernetes_pod_name"]
+    target_label  = "pod"
+  }
+  rule {
+    source_labels = ["__meta_kubernetes_pod_container_name"]
+    target_label  = "container"
+  }
+  // app: the app.kubernetes.io/name label, else the container name
+  rule {
+    source_labels = ["__meta_kubernetes_pod_container_name"]
+    target_label  = "app"
+  }
+  rule {
+    source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+    regex         = "(.+)"
+    target_label  = "app"
+  }
+  // service_name drives grouping in Grafana's Logs Drilldown
+  rule {
+    source_labels = ["app"]
+    target_label  = "service_name"
+  }
+  rule {
+    source_labels = ["namespace", "app"]
+    separator     = "/"
+    target_label  = "job"
+  }
+  rule {
+    source_labels = ["__meta_kubernetes_pod_uid", "__meta_kubernetes_pod_container_name"]
+    separator     = "/"
+    replacement   = "/var/log/pods/*$1/*.log"
+    target_label  = "__path__"
+  }
+}
+
+local.file_match "pod_logs" {
+  path_targets = discovery.relabel.pod_logs.output
+}
+
+loki.source.file "pod_logs" {
+  targets    = local.file_match.pod_logs.targets
+  forward_to = [loki.process.pod_logs.receiver]
+}
+
+loki.process "pod_logs" {
+  // containerd log format -> the raw line
+  stage.cri { }
+
+  // Structured (JSON) logs: find the level, whatever the framework calls it
+  stage.json {
+    expressions = { level = "level || lvl || severity || LogLevel || Level" }
+  }
+
+  // One spelling per level, so filtering by level works across languages
+  stage.template {
+    source   = "level"
+    template = `{{ $l := ToLower .Value }}{{ if eq $l "information" }}info{{ else if eq $l "warning" }}warn{{ else if or (eq $l "critical") (eq $l "fatal") }}fatal{{ else }}{{ $l }}{{ end }}`
+  }
+
+  stage.labels {
+    values = { level = "" }
+  }
+
+  forward_to = [loki.write.hub.receiver]
+}
+
+loki.write "hub" {
+  external_labels = { cluster = "__CLUSTER__" }
+
+  endpoint {
+    url = "__INGEST_URL__/loki/api/v1/push"
+
+    tls_config {
+      ca_file     = "/etc/alloy/tls/ca.crt"
+      cert_file   = "/etc/alloy/tls/tls.crt"
+      key_file    = "/etc/alloy/tls/tls.key"
+      server_name = "__SERVER_NAME__"
+    }
+  }
+}

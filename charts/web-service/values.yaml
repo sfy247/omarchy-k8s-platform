@@ -45,6 +45,13 @@ route:
     namespace: gateway
     sectionName: https
 
+# Prometheus metrics at /metrics on the http port, collected by the
+# cluster's Alloy through a PodMonitor
+metrics:
+  enabled: false
+  path: /metrics
+  interval: 30s
+
 # Own PostgreSQL database. The provisioning tooling creates the database, role
 # and the <name>-db Secret (libpq env: PGHOST, PGUSER, DATABASE_URL, ...).
 database:

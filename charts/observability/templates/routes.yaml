@@ -1,0 +1,39 @@
+# Grafana for people, through the gateway's HTTPS listener
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: grafana
+spec:
+  parentRefs:
+    - name: {{ .Values.gateway.name }}
+      namespace: {{ .Values.gateway.namespace }}
+      sectionName: {{ .Values.gateway.httpsSection }}
+  hostnames:
+    - {{ required "grafanaHostname is required (cluster annotation lab/grafana-hostname)" .Values.grafanaHostname | quote }}
+  rules:
+    - backendRefs:
+        - name: grafana
+          port: 80
+---
+# Telemetry from agents, through the gateway's mTLS ingest listener: only
+# clients with a certificate signed by the lab CA get this far
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: ingest
+spec:
+  parentRefs:
+    - name: {{ .Values.gateway.name }}
+      namespace: {{ .Values.gateway.namespace }}
+      sectionName: {{ .Values.gateway.ingestSection }}
+  rules:
+    - matches:
+        - path: { type: Exact, value: /api/v1/write }
+      backendRefs:
+        - name: kps-prometheus
+          port: 9090
+    - matches:
+        - path: { type: Exact, value: /loki/api/v1/push }
+      backendRefs:
+        - name: loki
+          port: 3100
