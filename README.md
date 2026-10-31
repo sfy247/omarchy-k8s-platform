@@ -20,7 +20,9 @@ hub cluster (mgmt): Argo CD
 
 | Path | What lives there |
 |---|---|
-| `bootstrap/` | Hub plumbing the root app syncs: projects, the `environments` ApplicationSet, and `cluster-addons.yaml` (add-on versions pinned there) |
+| `bootstrap/` | Hub plumbing the root app syncs: projects, the `environments` and `hub` ApplicationSets, and `cluster-addons.yaml` (add-on versions pinned there) |
+| `hub/` | Services that run only on the hub: the developer portal (`developer-portal/`) and Argo CD Image Updater (`image-updater/`) |
+| `charts/developer-portal/` | Official Backstage chart plus its own CloudNativePG database, HTTPRoute and NetworkPolicies |
 | `cluster-addons/gateway/` | Per-cluster HTTPS entry point: Envoy Gateway, wildcard certificate, HTTP→HTTPS redirect |
 | `environments/<env>/<group>/` | Per environment and app group: an AppProject and an ApplicationSet targeting that env's cluster |
 | `apps/<group>/<app>/` | Source, Dockerfile, `values.yaml` (base) and optional `values-<env>.yaml` overrides |
@@ -45,6 +47,20 @@ registration, and the ApplicationSets read them from there:
 
 Certificates come from cert-manager, issued by a local CA. The CA's key is put
 into each cluster by the provisioning tooling and never stored in Git.
+
+## Developer portal
+
+Backstage runs on the hub at `https://backstage.<domain>`. Its code and
+templates live in [omarchy-k8s-portal](https://github.com/sfy247/omarchy-k8s-portal);
+this repo only deploys it. Templates open pull requests here that add
+`apps/services/<name>/` and an `ImageUpdater` rule in
+`environments/dev/services/image-updates/`.
+
+**Image roll-forward:** Argo CD Image Updater watches GHCR. When a newer
+`sha-<commit>` image appears, it commits the tag to the app's values file
+(the portal's own `charts/developer-portal/values.yaml`, or a service's
+`values-dev.yaml`) and Argo CD deploys it. Commits from
+`argocd-image-updater` in this repo's history are those roll-forwards.
 
 ## Security defaults
 
