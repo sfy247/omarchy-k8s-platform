@@ -78,6 +78,9 @@ alloy-metrics:
 
 alloy-logs:
   fullnameOverride: alloy-logs
+  # alloy-metrics already installs Alloy's CRDs
+  crds:
+    create: false
   controller:
     type: daemonset
     volumes:
