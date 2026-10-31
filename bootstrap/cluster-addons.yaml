@@ -215,6 +215,8 @@ spec:
             ingest:
               url: '{{index .metadata.annotations "lab/observability-ingest-url"}}'
               serverName: '{{index .metadata.annotations "lab/observability-ingest-server"}}'
+            clientCert:
+              dnsName: 'alloy.{{index .metadata.annotations "lab/domain"}}'
           # --set yields a real boolean; Helm dependency conditions ignore strings.
           # The hub's backend already runs the exporters.
           parameters:

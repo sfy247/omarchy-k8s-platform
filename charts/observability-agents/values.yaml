@@ -8,6 +8,9 @@ ingest:
 clientCert:
   secretName: alloy-client
   issuer: lab-ca
+  # Must sit under the lab domain: the lab CA is name-constrained, and TLS
+  # stacks check that constraint against the client certificate's name too
+  dnsName: ""        # e.g. alloy.dev.<domain>
 
 exporters:
   enabled: true

@@ -5,7 +5,9 @@ metadata:
   name: {{ .Values.clientCert.secretName }}
 spec:
   secretName: {{ .Values.clientCert.secretName }}
-  commonName: alloy-{{ .Values.cluster }}
+  commonName: {{ required "clientCert.dnsName is required" .Values.clientCert.dnsName | quote }}
+  dnsNames:
+    - {{ .Values.clientCert.dnsName | quote }}
   usages: [client auth, digital signature, key encipherment]
   duration: 2160h
   renewBefore: 360h
