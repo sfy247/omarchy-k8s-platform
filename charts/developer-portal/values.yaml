@@ -30,7 +30,7 @@ backstage:
     image:
       registry: ""
       repository: ghcr.io/sfy247/omarchy-k8s-portal
-      tag: sha-9b3a8a3489d061de227486696efb4e203f44948e
+      tag: sha-295d7ccb3ed22e7572bba1c213692ab30d6755b0
       pullPolicy: IfNotPresent
     # The chart replaces the image CMD, so list the base configs explicitly;
     # extraAppConfig appends --config app-config.lab.yaml after these
