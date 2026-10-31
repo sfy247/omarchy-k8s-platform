@@ -1,0 +1,33 @@
+# Services that run only on the hub (e.g. the developer portal). One app,
+# hub-<cluster>, syncs hub/ for the cluster registered with hub=true, the same
+# way env-<name> syncs environments/<name>/ for each worker.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: hub
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - clusters:
+        selector:
+          matchLabels: { hub: "true" }
+  template:
+    metadata:
+      name: 'hub-{{.name}}'
+    spec:
+      project: platform
+      source:
+        repoURL: https://github.com/sfy247/omarchy-k8s-platform.git
+        targetRevision: main
+        path: hub
+        directory:
+          recurse: true
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: argocd
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true

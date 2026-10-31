@@ -1,0 +1,79 @@
+# Set per cluster by the ApplicationSet from Argo CD cluster annotations
+route:
+  hostname: ""
+  gateway:
+    name: shared
+    namespace: gateway
+    sectionName: https
+
+# Dedicated PostgreSQL for the portal (CloudNativePG). Secrets it creates:
+#   <name>-app  credentials (username, password, host, port, dbname)
+#   <name>-ca   CA that signs the server certificate (TLS is verified)
+database:
+  name: backstage-db
+  instances: 1
+  storage: 1Gi
+
+# Settings the provisioning tooling writes into the namespace
+labConfig:
+  configMap: backstage-lab-config   # app-config.lab.yaml: URLs, GitHub, catalog, clusters
+  secret: backstage-secrets         # GITHUB_TOKEN, BACKEND_SECRET, K8S_<ENV>_TOKEN, ...
+
+gatewayNamespace: envoy-gateway-system
+operatorNamespace: cnpg-system
+
+backstage:
+  backstage:
+    # Full image name in repository (registry left empty) so Argo CD Image
+    # Updater can write it back as one value; tag is kept current by
+    # hub/developer-portal/image-updater.yaml
+    image:
+      registry: ""
+      repository: ghcr.io/sfy247/omarchy-k8s-portal
+      tag: sha-0000000000000000000000000000000000000000
+      pullPolicy: IfNotPresent
+    # The chart replaces the image CMD, so list the base configs explicitly;
+    # extraAppConfig appends --config app-config.lab.yaml after these
+    args: ["--config", "app-config.yaml", "--config", "app-config.production.yaml"]
+    extraAppConfig:
+      - filename: app-config.lab.yaml
+        configMapRef: backstage-lab-config
+    extraEnvVarsSecrets:
+      - backstage-secrets
+    extraEnvVars:
+      - { name: POSTGRES_HOST, valueFrom: { secretKeyRef: { name: backstage-db-app, key: host } } }
+      - { name: POSTGRES_PORT, valueFrom: { secretKeyRef: { name: backstage-db-app, key: port } } }
+      - { name: POSTGRES_USER, valueFrom: { secretKeyRef: { name: backstage-db-app, key: username } } }
+      - { name: POSTGRES_PASSWORD, valueFrom: { secretKeyRef: { name: backstage-db-app, key: password } } }
+      - { name: POSTGRES_DB, valueFrom: { secretKeyRef: { name: backstage-db-app, key: dbname } } }
+    extraVolumes:
+      - name: postgres-ca
+        secret:
+          secretName: backstage-db-ca
+          items: [{ key: ca.crt, path: ca.crt }]
+      - name: tmp
+        emptyDir: { sizeLimit: 1Gi }
+    extraVolumeMounts:
+      - { name: postgres-ca, mountPath: /etc/postgres-ca, readOnly: true }
+      # Scaffolder workspaces and TechDocs builds
+      - { name: tmp, mountPath: /tmp }
+    podSecurityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      runAsGroup: 1000
+      fsGroup: 1000
+      seccompProfile: { type: RuntimeDefault }
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities: { drop: [ALL] }
+    resources:
+      requests: { cpu: 250m, memory: 512Mi }
+      limits: { memory: 1536Mi }
+  serviceAccount:
+    create: true
+    automountServiceAccountToken: false
+  postgresql:
+    enabled: false
+  ingress:
+    enabled: false

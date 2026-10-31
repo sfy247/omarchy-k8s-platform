@@ -3,12 +3,11 @@
 #
 # Per-cluster settings come from the cluster's Argo CD annotations, written by
 # the provisioning tooling, so no domain, hostname or port is hard-coded:
-#   lab/gateway-hostname         listener hostname (wildcard on workers)
+#   lab/gateway-hostnames        space-separated hostnames (wildcard on workers)
 #   lab/gateway-http-nodeport    Envoy NodePorts kind maps :80/:443 onto
 #   lab/gateway-https-nodeport
 #   lab/argocd-route             "true" on the hub: route Argo CD through the gateway
-#
-# The CloudNativePG operator only goes to environment (worker) clusters.
+#   lab/domain                   the cluster's DNS suffix (argocd.<domain> on the hub)
 ---
 # Add-ons are cluster infrastructure (CRDs, webhooks, cluster roles), so this
 # project can create cluster-scoped kinds, but only in its own namespaces.
@@ -23,6 +22,7 @@ spec:
     - https://github.com/sfy247/omarchy-k8s-platform.git
     - https://charts.jetstack.io
     - https://cloudnative-pg.github.io/charts
+    - https://argoproj.github.io/argo-helm
     - oci://docker.io/envoyproxy/gateway-helm
   destinations:
     - { name: "*", namespace: cert-manager }
@@ -121,14 +121,16 @@ spec:
         path: cluster-addons/gateway
         helm:
           parameters:
-            - name: hostname
-              value: '{{index .metadata.annotations "lab/gateway-hostname"}}'
+            - name: hostnames
+              value: '{{index .metadata.annotations "lab/gateway-hostnames"}}'
             - name: nodePorts.http
               value: '{{index .metadata.annotations "lab/gateway-http-nodeport"}}'
             - name: nodePorts.https
               value: '{{index .metadata.annotations "lab/gateway-https-nodeport"}}'
             - name: argocdRoute.enabled
               value: '{{index .metadata.annotations "lab/argocd-route"}}'
+            - name: argocdRoute.hostname
+              value: 'argocd.{{index .metadata.annotations "lab/domain"}}'
       destination:
         name: '{{.name}}'
         namespace: gateway
@@ -139,7 +141,8 @@ spec:
           limit: 20
           backoff: { duration: 10s, factor: 2, maxDuration: 3m }
 ---
-# Postgres operator, workers only (selected by the environment label)
+# Postgres operator on every cluster: app data on workers, the portal's own
+# database on the hub
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -151,8 +154,7 @@ spec:
   generators:
     - clusters:
         selector:
-          matchExpressions:
-            - { key: environment, operator: Exists }
+          matchLabels: { addons: enabled }
   template:
     metadata:
       name: 'cloudnative-pg-{{.name}}'

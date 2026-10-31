@@ -1,0 +1,28 @@
+# Developer portal (Backstage) on the hub. Least privilege: this repo and the
+# Backstage chart repo, one namespace on the hub, only the kinds it renders.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: developer-portal
+  namespace: argocd
+spec:
+  description: Backstage developer portal
+  sourceRepos:
+    - https://github.com/sfy247/omarchy-k8s-platform.git
+    - https://backstage.github.io/charts
+  destinations:
+    # The hub is always the cluster Argo CD runs in
+    - server: https://kubernetes.default.svc
+      namespace: developer-portal
+  # Only so Argo CD can create the namespace (CreateNamespace=true)
+  clusterResourceWhitelist:
+    - { group: "", kind: Namespace }
+  namespaceResourceWhitelist:
+    - { group: "", kind: Service }
+    - { group: "", kind: ServiceAccount }
+    - { group: apps, kind: Deployment }
+    - { group: networking.k8s.io, kind: NetworkPolicy }
+    - { group: gateway.networking.k8s.io, kind: HTTPRoute }
+    - { group: postgresql.cnpg.io, kind: Cluster }
+  orphanedResources:
+    warn: true

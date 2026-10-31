@@ -1,0 +1,12 @@
+apiVersion: v2
+name: developer-portal
+description: >-
+  Backstage developer portal for the lab: the official Backstage chart plus its
+  own PostgreSQL (CloudNativePG), an HTTPRoute through the cluster gateway, and
+  default-deny NetworkPolicies
+type: application
+version: 0.1.0
+dependencies:
+  - name: backstage
+    version: 2.10.2
+    repository: https://backstage.github.io/charts

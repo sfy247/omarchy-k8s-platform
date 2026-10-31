@@ -1,0 +1,19 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ .Values.database.name }}
+spec:
+  instances: {{ .Values.database.instances }}
+  enableSuperuserAccess: false
+  storage:
+    size: {{ .Values.database.storage }}
+  # Creates database "backstage" owned by role "backstage"; credentials go to
+  # the <name>-app Secret. Backstage keeps one schema per plugin inside it.
+  bootstrap:
+    initdb:
+      database: backstage
+      owner: backstage
+  postgresql:
+    pg_hba:
+      - hostssl all all all scram-sha-256
+      - hostnossl all all all reject

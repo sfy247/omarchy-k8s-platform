@@ -1,0 +1,25 @@
+# Rolls the portal forward: when its CI publishes a newer sha-<commit> image,
+# Image Updater commits the tag to charts/developer-portal/values.yaml.
+apiVersion: argocd-image-updater.argoproj.io/v1alpha1
+kind: ImageUpdater
+metadata:
+  name: developer-portal
+  namespace: argocd
+spec:
+  writeBackConfig:
+    method: git:secret:argocd/image-updater-git
+    gitConfig:
+      branch: main
+      writeBackTarget: helmvalues:/charts/developer-portal/values.yaml
+  applicationRefs:
+    - namePattern: developer-portal
+      images:
+        - alias: portal
+          imageName: ghcr.io/sfy247/omarchy-k8s-portal
+          commonUpdateSettings:
+            updateStrategy: newest-build
+            allowTags: regexp:^sha-[0-9a-f]{40}$
+          manifestTargets:
+            helm:
+              name: backstage.backstage.image.repository
+              tag: backstage.backstage.image.tag

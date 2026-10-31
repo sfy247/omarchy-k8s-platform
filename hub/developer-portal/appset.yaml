@@ -1,0 +1,50 @@
+# Backstage on the cluster registered with hub=true. Its hostname comes from
+# the cluster's lab/portal-hostname annotation; everything lab-specific in its
+# config (URLs, GitHub, catalog, clusters) is written by the provisioning tooling.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: developer-portal
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - clusters:
+        selector:
+          matchLabels: { hub: "true" }
+  template:
+    metadata:
+      name: 'developer-portal'
+      labels:
+        app.kubernetes.io/part-of: developer-portal
+    spec:
+      project: developer-portal
+      source:
+        repoURL: https://github.com/sfy247/omarchy-k8s-platform.git
+        targetRevision: main
+        path: charts/developer-portal
+        helm:
+          releaseName: developer-portal
+          parameters:
+            - name: route.hostname
+              value: '{{index .metadata.annotations "lab/portal-hostname"}}'
+      destination:
+        name: '{{.name}}'
+        namespace: developer-portal
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          # CNPG Cluster CRD comes from the cloudnative-pg add-on
+          - SkipDryRunOnMissingResource=true
+        retry:
+          limit: 20
+          backoff: { duration: 10s, factor: 2, maxDuration: 3m }
+        managedNamespaceMetadata:
+          labels:
+            pod-security.kubernetes.io/enforce: restricted
+            pod-security.kubernetes.io/enforce-version: latest
+            pod-security.kubernetes.io/warn: restricted

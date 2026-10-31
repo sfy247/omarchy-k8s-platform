@@ -1,0 +1,62 @@
+# Backstage: in only from the gateway; out to its database, DNS, and HTTPS/API
+# endpoints (GitHub, worker cluster API servers on 6443)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: backstage
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: backstage
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.gatewayNamespace }}
+      ports:
+        - { port: 7007, protocol: TCP }
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              cnpg.io/cluster: {{ .Values.database.name }}
+      ports:
+        - { port: 5432, protocol: TCP }
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - { port: 53, protocol: UDP }
+        - { port: 53, protocol: TCP }
+    - ports:
+        - { port: 443, protocol: TCP }
+        - { port: 6443, protocol: TCP }
+---
+# Portal database: only Backstage, its own replicas, and the operator
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Values.database.name }}
+spec:
+  podSelector:
+    matchLabels:
+      cnpg.io/cluster: {{ .Values.database.name }}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: backstage
+      ports:
+        - { port: 5432, protocol: TCP }
+    - from:
+        - podSelector:
+            matchLabels:
+              cnpg.io/cluster: {{ .Values.database.name }}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.operatorNamespace }}

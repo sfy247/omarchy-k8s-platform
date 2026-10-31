@@ -1,0 +1,25 @@
+# Least privilege: one repo, one namespace on the dev cluster, and only the
+# kinds the web-service chart renders
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: services-dev
+  namespace: argocd
+spec:
+  description: Services created from the developer portal, in dev
+  sourceRepos:
+    - https://github.com/sfy247/omarchy-k8s-platform.git
+  destinations:
+    - name: dev
+      namespace: services
+  # Only so Argo CD can create the namespace (CreateNamespace=true)
+  clusterResourceWhitelist:
+    - { group: "", kind: Namespace }
+  namespaceResourceWhitelist:
+    - { group: "", kind: Service }
+    - { group: "", kind: ServiceAccount }
+    - { group: apps, kind: Deployment }
+    - { group: networking.k8s.io, kind: NetworkPolicy }
+    - { group: gateway.networking.k8s.io, kind: HTTPRoute }
+  orphanedResources:
+    warn: true

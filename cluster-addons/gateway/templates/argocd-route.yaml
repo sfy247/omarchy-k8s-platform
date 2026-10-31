@@ -10,7 +10,7 @@ spec:
       namespace: {{ .Release.Namespace }}
       sectionName: https
   hostnames:
-    - {{ include "gateway.hostname" . | quote }}
+    - {{ .Values.argocdRoute.hostname | required "argocdRoute.hostname is required" | quote }}
   rules:
     - backendRefs:
         - name: {{ .Values.argocdRoute.service }}

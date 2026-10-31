@@ -1,0 +1,38 @@
+# Argo CD Image Updater on the hub: watches GHCR for newer sha-<commit> images
+# and commits the new tag to the platform repo, so services roll forward through
+# Git. Rules live next to each service (environments/<env>/<group>/image-updates/).
+# Git write access comes from the image-updater-git Secret, written by the
+# provisioning tooling.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: argocd-image-updater
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - clusters:
+        selector:
+          matchLabels: { hub: "true" }
+  template:
+    metadata:
+      name: 'argocd-image-updater'
+      labels: { app.kubernetes.io/part-of: cluster-addons }
+    spec:
+      project: cluster-addons
+      source:
+        repoURL: https://argoproj.github.io/argo-helm
+        chart: argocd-image-updater
+        targetRevision: 1.4.0
+        helm:
+          valuesObject:
+            config:
+              git.user: argocd-image-updater
+              git.email: argocd-image-updater@users.noreply.github.com
+      destination:
+        name: '{{.name}}'
+        namespace: argocd
+      syncPolicy:
+        automated: { prune: true, selfHeal: true }
+        syncOptions: [ServerSideApply=true]

@@ -18,6 +18,8 @@ spec:
   namespaceResourceWhitelist:
     - { group: argoproj.io, kind: AppProject }
     - { group: argoproj.io, kind: ApplicationSet }
+    # Per-service image roll-forward rules (environments/<env>/<group>/image-updates/)
+    - { group: argocd-image-updater.argoproj.io, kind: ImageUpdater }
 ---
 # Argo CD's built-in project allows any repo, destination and resource.
 # Empty it so every app has to use a scoped project.

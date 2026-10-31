@@ -1,6 +1,8 @@
-# Listener hostname, e.g. "*.dev.<domain>" on a worker or "argocd.<domain>" on
-# the hub. Supplied per cluster by Argo CD from the cluster's annotations.
-hostname: ""
+# Space-separated hostnames this gateway serves, e.g. "*.dev.<domain>" on a
+# worker or "argocd.<domain> backstage.<domain>" on the hub. Supplied per
+# cluster by Argo CD from the cluster's annotations. One name pins the
+# listeners to it; several share one certificate and routes filter by host.
+hostnames: ""
 
 gatewayName: shared
 gatewayClassName: envoy
@@ -21,6 +23,7 @@ issuer:
 # Route argocd-server through this gateway (hub only)
 argocdRoute:
   enabled: false
+  hostname: ""
   namespace: argocd
   service: argocd-server
   port: 80

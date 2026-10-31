@@ -3,3 +3,5 @@
 *.class
 __pycache__/
 node_modules/
+# Helm dependencies are fetched at render time (Chart.lock pins them)
+charts/*/charts/

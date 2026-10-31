@@ -1,0 +1,15 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: backstage
+spec:
+  parentRefs:
+    - name: {{ .Values.route.gateway.name }}
+      namespace: {{ .Values.route.gateway.namespace }}
+      sectionName: {{ .Values.route.gateway.sectionName }}
+  hostnames:
+    - {{ required "route.hostname is required (cluster annotation lab/portal-hostname)" .Values.route.hostname | quote }}
+  rules:
+    - backendRefs:
+        - name: {{ .Release.Name }}-backstage
+          port: 7007
