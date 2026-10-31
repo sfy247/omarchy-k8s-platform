@@ -22,10 +22,11 @@ hub cluster (mgmt): Argo CD
 |---|---|
 | `bootstrap/` | Hub plumbing the root app syncs: projects, the `environments` and `hub` ApplicationSets, and `cluster-addons.yaml` (add-on versions pinned there) |
 | `hub/` | Services that run only on the hub: the developer portal (`developer-portal/`) and Argo CD Image Updater (`image-updater/`) |
+| `catalog/` | What the portal's **Discover** section shows: the lab domain, systems, clusters, Argo CD, gateway, Postgres |
 | `charts/developer-portal/` | Official Backstage chart plus its own CloudNativePG database, HTTPRoute and NetworkPolicies |
 | `cluster-addons/gateway/` | Per-cluster HTTPS entry point: Envoy Gateway, wildcard certificate, HTTP→HTTPS redirect |
 | `environments/<env>/<group>/` | Per environment and app group: an AppProject and an ApplicationSet targeting that env's cluster |
-| `apps/<group>/<app>/` | Source, Dockerfile, `values.yaml` (base) and optional `values-<env>.yaml` overrides |
+| `apps/<group>/<app>/` | Source, Dockerfile, `values.yaml` (base), optional `values-<env>.yaml` overrides, and `catalog-info.yaml` (its entry in Discover) |
 | `charts/web-service/` | Reusable, hardened Helm chart every app is deployed with |
 
 An environment is enabled by registering its cluster in Argo CD with an
