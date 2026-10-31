@@ -20,6 +20,14 @@ labConfig:
   secret: backstage-secrets         # GITHUB_TOKEN, BACKEND_SECRET, K8S_<ENV>_TOKEN, ...
 
 gatewayNamespace: envoy-gateway-system
+
+# Operate (deployments, health, logs): in-cluster APIs the portal backend may
+# call, opened in its egress NetworkPolicy
+operateEgress:
+  - { namespace: argocd, app: argocd-server, port: 8080 }
+  - { namespace: observability, app: prometheus, port: 9090 }
+  - { namespace: observability, app: alertmanager, port: 9093 }
+  - { namespace: observability, app: loki, port: 3100 }
 operatorNamespace: cnpg-system
 
 backstage:

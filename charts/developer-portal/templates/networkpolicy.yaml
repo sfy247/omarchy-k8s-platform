@@ -1,5 +1,6 @@
-# Backstage: in only from the gateway; out to its database, DNS, and HTTPS/API
-# endpoints (GitHub, worker cluster API servers on 6443)
+# Backstage: in only from the gateway; out to its database, DNS, HTTPS/API
+# endpoints (GitHub, worker cluster API servers on 6443), and the Operate APIs
+# (Argo CD, Prometheus, Alertmanager, Loki)
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -34,6 +35,17 @@ spec:
     - ports:
         - { port: 443, protocol: TCP }
         - { port: 6443, protocol: TCP }
+{{- range .Values.operateEgress }}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .namespace }}
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: {{ .app }}
+      ports:
+        - { port: {{ .port }}, protocol: TCP }
+{{- end }}
 ---
 # Portal database: only Backstage, its own replicas, and the operator
 apiVersion: networking.k8s.io/v1
