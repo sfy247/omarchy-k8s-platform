@@ -199,6 +199,9 @@ spec:
     metadata:
       name: 'observability-agents-{{.name}}'
       labels: { app.kubernetes.io/part-of: observability }
+      annotations:
+        # Diff against what the API server would store (CRD defaults included)
+        argocd.argoproj.io/compare-options: ServerSideDiff=true
     spec:
       project: cluster-addons
       source:
