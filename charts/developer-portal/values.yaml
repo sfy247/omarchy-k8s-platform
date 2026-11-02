@@ -17,7 +17,7 @@ database:
 # Settings the provisioning tooling writes into the namespace
 labConfig:
   configMap: backstage-lab-config   # app-config.lab.yaml: URLs, GitHub, catalog, clusters
-  secret: backstage-secrets         # GITHUB_TOKEN, BACKEND_SECRET, K8S_<ENV>_TOKEN, ...
+  secret: backstage-secrets         # GITHUB_TOKEN, PORTAL_AUTOMATION_TOKEN, ARGOCD_TOKEN, K8S_<ENV>_TOKEN, ...
 
 gatewayNamespace: envoy-gateway-system
 
