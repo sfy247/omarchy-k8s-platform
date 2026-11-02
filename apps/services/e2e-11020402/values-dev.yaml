@@ -3,3 +3,4 @@
 image:
   tag: sha-40c199b8771b99575be820de24ac6ae558fd875b
   repository: ghcr.io/sfy247/e2e-11020402
+replicaCount: 2
