@@ -1,4 +1,5 @@
 # dev overrides. image.tag is maintained by Argo CD Image Updater
 # (environments/dev/services/image-updates/e2e-11020402.yaml).
 image:
-  tag: bootstrap
+  tag: sha-40c199b8771b99575be820de24ac6ae558fd875b
+  repository: ghcr.io/sfy247/e2e-11020402
