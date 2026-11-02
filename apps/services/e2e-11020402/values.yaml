@@ -1,0 +1,18 @@
+# e2e-11020402: values for the platform's web-service chart (all environments).
+# Created by the developer portal (templates/_shared/infra).
+nameOverride: e2e-11020402
+
+image:
+  repository: ghcr.io/sfy247/e2e-11020402
+  tag: bootstrap   # each environment pins its tag in values-<env>.yaml
+
+containerPort: 8080
+
+# Request metrics at /metrics (every service template provides them), scraped
+# via a PodMonitor: Grafana's Service Health dashboard and app alerts use them
+metrics:
+  enabled: true
+
+resources:
+  requests: { cpu: 50m, memory: 96Mi }
+  limits: { memory: 256Mi }
