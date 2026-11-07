@@ -1,5 +1,5 @@
-# dev overrides. image.tag is maintained by Argo CD Image Updater
-# (environments/dev/services/image-updates/e2e-11020402.yaml).
+# dev overrides. image.tag is the image running here: the service's CI commits
+# each new sha-<commit> tag to this file after publishing it.
 image:
   tag: sha-40c199b8771b99575be820de24ac6ae558fd875b
   repository: ghcr.io/sfy247/e2e-11020402

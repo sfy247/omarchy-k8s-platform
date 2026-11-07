@@ -26,6 +26,8 @@ spec:
         path: charts/developer-portal
         helm:
           releaseName: developer-portal
+          # values-image.yaml: the running image tag, committed by the portal's CI
+          valueFiles: [values.yaml, values-image.yaml]
           parameters:
             - name: route.hostname
               value: '{{index .metadata.annotations "lab/portal-hostname"}}'

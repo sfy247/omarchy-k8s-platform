@@ -40,19 +40,6 @@ spec:
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
-  name: argocd-image-updater
-  title: Argo CD Image Updater
-  description: Rolls new container images forward by committing tags to Git
-spec:
-  type: service
-  lifecycle: production
-  owner: group:default/platform-team
-  system: developer-platform
-  dependsOn: [resource:default/cluster-mgmt, component:default/argocd]
----
-apiVersion: backstage.io/v1alpha1
-kind: Component
-metadata:
   name: gateway
   title: Gateway (Envoy)
   description: HTTPS entry point on every cluster, with certificates from the lab CA

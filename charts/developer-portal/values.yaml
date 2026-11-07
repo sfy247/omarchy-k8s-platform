@@ -32,13 +32,11 @@ operatorNamespace: cnpg-system
 
 backstage:
   backstage:
-    # Full image name in repository (registry left empty) so Argo CD Image
-    # Updater can write it back as one value; tag is kept current by
-    # hub/developer-portal/image-updater.yaml
+    # The tag lives in values-image.yaml, which the portal's CI updates
     image:
       registry: ""
       repository: ghcr.io/sfy247/omarchy-k8s-portal
-      tag: sha-0f1a2d143af29099a35d1aec59b0e2617ad51a4a
+      tag: main
       pullPolicy: IfNotPresent
     # The chart replaces the image CMD, so list the base configs explicitly;
     # extraAppConfig appends --config app-config.lab.yaml after these

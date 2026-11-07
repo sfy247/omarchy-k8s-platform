@@ -1,0 +1,8 @@
+# The portal image that's running. Machine-managed: the portal's CI commits
+# each new sha-<commit> tag here after publishing it (deploy job in
+# omarchy-k8s-portal/.github/workflows/build-image.yaml). Hand edits are fine
+# for a rollback; CI overwrites the tag on the next release.
+backstage:
+  backstage:
+    image:
+      tag: sha-0f1a2d143af29099a35d1aec59b0e2617ad51a4a
