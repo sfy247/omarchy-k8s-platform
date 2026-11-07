@@ -13,3 +13,5 @@ clientLabel:
   key: lab/postgres-client
   value: "true"
 operatorNamespace: cnpg-system
+# Where the metrics agent (Alloy) runs; may scrape :9187
+monitoringNamespace: observability

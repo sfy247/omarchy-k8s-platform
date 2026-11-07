@@ -1,4 +1,5 @@
-# Default-deny for Postgres: replicas, the operator, and labelled app pods only
+# Default-deny for Postgres: replicas, the operator, labelled app pods, and
+# the metrics agent (exporter port only)
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -22,3 +23,9 @@ spec:
               {{ .Values.clientLabel.key }}: {{ .Values.clientLabel.value | quote }}
       ports:
         - { port: 5432, protocol: TCP }
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.monitoringNamespace }}
+      ports:
+        - { port: 9187, protocol: TCP }

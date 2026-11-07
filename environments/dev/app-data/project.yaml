@@ -18,5 +18,6 @@ spec:
   namespaceResourceWhitelist:
     - { group: postgresql.cnpg.io, kind: Cluster }
     - { group: networking.k8s.io, kind: NetworkPolicy }
+    - { group: monitoring.coreos.com, kind: PodMonitor }
   orphanedResources:
     warn: true

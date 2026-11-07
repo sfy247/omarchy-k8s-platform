@@ -310,9 +310,64 @@ def pod_troubleshooting():
                      desc="Why one pod is unhealthy: status, restarts, resources, logs and events")
 
 
+# ---------------------------------------------------------------- PostgreSQL
+def postgresql():
+    sel = 'cluster=~"$cluster", app=~"$app"'
+    db = f'{sel}, datname=~"$datname"'
+    l = Layout()
+    l.add(text("**Shared PostgreSQL** (CloudNativePG). Each app has its own database: pick it in *Database*. "
+               "Connections near the limit, a full volume, deadlocks and long transactions are what usually hurt apps."), 24, 2)
+    l.row("Is it healthy?")
+    l.add(stat("Up", f'min(cnpg_collector_up{{{sel}}})', thresholds=[(1, "green")],
+               desc="1 = every instance answers"), 3, 4)
+    l.add(stat("Instances ready", f'sum(kube_pod_status_ready{{condition="true", cluster=~"$cluster", pod=~"$app-[0-9]+"}})'), 3, 4)
+    l.add(stat("Connections used", f'sum(cnpg_backends_total{{{sel}}}) / max(cnpg_pg_settings_setting{{name="max_connections", {sel}}})',
+               unit="percentunit", thresholds=[(0.6, "orange"), (0.8, "red")]), 3, 4)
+    l.add(stat("Transactions/s", f'sum(rate(cnpg_pg_stat_database_xact_commit{{{db}}}[5m]) + rate(cnpg_pg_stat_database_xact_rollback{{{db}}}[5m]))', unit="ops"), 3, 4)
+    l.add(stat("Cache hit ratio", f'sum(rate(cnpg_pg_stat_database_blks_hit{{{db}}}[5m])) / (sum(rate(cnpg_pg_stat_database_blks_hit{{{db}}}[5m])) + sum(rate(cnpg_pg_stat_database_blks_read{{{db}}}[5m])))',
+               unit="percentunit", thresholds=[(0, "red"), (0.9, "orange"), (0.99, "green")],
+               desc="Reads served from memory. Below ~99% the working set doesn't fit in shared_buffers."), 3, 4)
+    l.add(stat("Deadlocks (1h)", f'sum(increase(cnpg_pg_stat_database_deadlocks{{{db}}}[1h])) or vector(0)', thresholds=[(1, "red")]), 3, 4)
+    l.add(stat("Storage used", f'sum(cnpg_pg_database_size_bytes{{{sel}}}) / sum(kube_persistentvolumeclaim_resource_requests_storage_bytes{{cluster=~"$cluster", persistentvolumeclaim=~"$app-[0-9]+"}})',
+               unit="percentunit", thresholds=[(0.7, "orange"), (0.85, "red")], desc="Database data vs the volume size (WAL not included)."), 3, 4)
+    l.add(stat("Longest transaction", f'max(cnpg_backends_max_tx_duration_seconds{{{sel}}})', unit="s", thresholds=[(60, "orange"), (300, "red")]), 3, 4)
+    l.row("Load")
+    l.add(ts("Transactions by database", [
+        prom(f'sum by (datname) (rate(cnpg_pg_stat_database_xact_commit{{{db}}}[$__rate_interval]))', "{{datname}} commit"),
+        prom(f'sum by (datname) (rate(cnpg_pg_stat_database_xact_rollback{{{db}}}[$__rate_interval]))', "{{datname}} rollback"),
+    ], unit="ops"), 12, 8)
+    l.add(ts("Connections by database and state", [
+        prom(f'sum by (datname, state) (cnpg_backends_total{{{db}}})', "{{datname}} {{state}}"),
+        prom(f'max(cnpg_pg_settings_setting{{name="max_connections", {sel}}})', "max_connections"),
+    ]), 12, 8)
+    l.add(ts("Rows read and written", [
+        prom(f'sum(rate(cnpg_pg_stat_database_tup_fetched{{{db}}}[$__rate_interval]))', "fetched"),
+        prom(f'sum(rate(cnpg_pg_stat_database_tup_inserted{{{db}}}[$__rate_interval]))', "inserted"),
+        prom(f'sum(rate(cnpg_pg_stat_database_tup_updated{{{db}}}[$__rate_interval]))', "updated"),
+        prom(f'sum(rate(cnpg_pg_stat_database_tup_deleted{{{db}}}[$__rate_interval]))', "deleted"),
+    ], unit="rowsps"), 12, 8)
+    l.add(ts("Longest transaction and waiting backends", [
+        prom(f'max(cnpg_backends_max_tx_duration_seconds{{{sel}}})', "longest transaction (s)"),
+        prom(f'sum(cnpg_backends_waiting_total{{{sel}}})', "waiting on locks"),
+    ]), 12, 8)
+    l.row("Size")
+    l.add(ts("Database size", [prom(f'sum by (datname) (cnpg_pg_database_size_bytes{{{db}}})', "{{datname}}")], unit="bytes"), 12, 8)
+    l.add(ts("Replication lag", [prom(f'max by (pod) (cnpg_pg_replication_lag{{{sel}}})', "{{pod}}")], unit="s",
+             desc="Empty with a single instance."), 12, 8)
+    l.row("Logs")
+    l.add(logs("PostgreSQL logs (warnings and errors)",
+               '{cluster=~"$cluster", pod=~"$app-[0-9]+", level=~"warn|warning|error|fatal|panic"}'), 24, 10)
+    variables = [CLUSTER,
+                 prom_var("app", 'label_values(cnpg_collector_up{cluster=~"$cluster"}, app)', label="Postgres cluster", multi=False, include_all=False),
+                 prom_var("datname", 'label_values(cnpg_pg_database_size_bytes{cluster=~"$cluster", app=~"$app"}, datname)', label="Database")]
+    return dashboard("postgresql", "PostgreSQL", l, variables, ["data"],
+                     desc="Health, load and size of the shared PostgreSQL, per database")
+
+
 if __name__ == "__main__":
     for folder, dash in [("Platform", platform_overview()), ("Applications", service_health()),
-                         ("Logs", logs_explorer()), ("Troubleshooting", pod_troubleshooting())]:
+                         ("Logs", logs_explorer()), ("Troubleshooting", pod_troubleshooting()),
+                         ("Data", postgresql())]:
         path = OUT / folder / f"{dash['uid']}.json"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(dash, indent=2) + "\n")

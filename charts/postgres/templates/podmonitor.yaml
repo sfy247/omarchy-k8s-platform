@@ -1,0 +1,17 @@
+# Metrics from every instance (CloudNativePG's exporter on :9187), collected by
+# the cluster's Alloy agent. app=<cluster name> joins the platform's
+# dashboards, alerts and the portal's Operate view.
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{ .Values.name }}
+spec:
+  selector:
+    matchLabels:
+      cnpg.io/cluster: {{ .Values.name }}
+  podMetricsEndpoints:
+    - port: metrics
+      interval: 30s
+      relabelings:
+        - targetLabel: app
+          replacement: {{ .Values.name }}

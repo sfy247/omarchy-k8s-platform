@@ -46,6 +46,86 @@ groups:
             or the network policy blocks the scrape.
           dashboard_url: "__GRAFANA_URL__/d/pod-troubleshooting?var-cluster={{ $labels.cluster }}&var-namespace={{ $labels.namespace }}&var-pod={{ $labels.pod }}"
 
+  # CloudNativePG clusters (metrics labelled app=<cluster name> by their PodMonitor)
+  - name: databases
+    rules:
+      - alert: PostgresDown
+        expr: cnpg_collector_up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Postgres {{ $labels.app }} ({{ $labels.cluster }}) instance {{ $labels.pod }} is down"
+          description: >-
+            The exporter can't reach PostgreSQL on {{ $labels.pod }}. Apps using it will fail to connect.
+            Check the instance's logs and events.
+          dashboard_url: "__GRAFANA_URL__/d/postgresql?var-cluster={{ $labels.cluster }}&var-app={{ $labels.app }}"
+
+      - alert: PostgresConnectionsHigh
+        expr: |
+          sum by (cluster, namespace, app, pod) (cnpg_backends_total)
+            /
+          max by (cluster, namespace, app, pod) (cnpg_pg_settings_setting{name="max_connections"})
+            > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Postgres {{ $labels.app }} ({{ $labels.cluster }}) is using {{ $value | humanizePercentage }} of its connections"
+          description: >-
+            Above 80% of max_connections for 5 minutes. New connections will soon be refused; look for an app
+            leaking connections or a missing connection pool.
+          dashboard_url: "__GRAFANA_URL__/d/postgresql?var-cluster={{ $labels.cluster }}&var-app={{ $labels.app }}"
+
+      - alert: PostgresStorageHigh
+        expr: |
+          sum by (cluster, namespace, app, pod) (cnpg_pg_database_size_bytes)
+            / on (cluster, namespace, pod) group_left
+          label_replace(kube_persistentvolumeclaim_resource_requests_storage_bytes, "pod", "$1", "persistentvolumeclaim", "(.*)")
+            > 0.8
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Postgres {{ $labels.app }} ({{ $labels.cluster }}) data is {{ $value | humanizePercentage }} of its volume"
+          description: >-
+            Databases use more than 80% of the instance's volume (WAL comes on top). Grow the volume
+            (storage.size) or clean up data before writes fail.
+          dashboard_url: "__GRAFANA_URL__/d/postgresql?var-cluster={{ $labels.cluster }}&var-app={{ $labels.app }}"
+
+      - alert: PostgresDeadlocks
+        expr: sum by (cluster, namespace, app, datname) (increase(cnpg_pg_stat_database_deadlocks[10m])) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "Deadlocks in database {{ $labels.datname }} on {{ $labels.app }} ({{ $labels.cluster }})"
+          description: >-
+            Transactions in {{ $labels.datname }} blocked each other and Postgres aborted one. The owning app
+            should take locks in a consistent order; its logs show the failed transaction.
+          dashboard_url: "__GRAFANA_URL__/d/postgresql?var-cluster={{ $labels.cluster }}&var-app={{ $labels.app }}"
+
+      - alert: PostgresLongTransaction
+        expr: max by (cluster, namespace, app, pod) (cnpg_backends_max_tx_duration_seconds) > 300
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "A transaction on {{ $labels.app }} ({{ $labels.cluster }}) has been open for {{ $value | humanizeDuration }}"
+          description: >-
+            Long transactions hold locks and stop vacuum. Usually an app left a transaction open (idle in transaction).
+          dashboard_url: "__GRAFANA_URL__/d/postgresql?var-cluster={{ $labels.cluster }}&var-app={{ $labels.app }}"
+
+      - alert: PostgresReplicationLag
+        expr: max by (cluster, namespace, app, pod) (cnpg_pg_replication_lag) > 30
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Replica {{ $labels.pod }} of {{ $labels.app }} ({{ $labels.cluster }}) is {{ $value | humanizeDuration }} behind"
+          description: >-
+            A replica is more than 30s behind the primary: failover would lose recent writes, and reads from it are stale.
+          dashboard_url: "__GRAFANA_URL__/d/postgresql?var-cluster={{ $labels.cluster }}&var-app={{ $labels.app }}"
+
   - name: telemetry-pipeline
     rules:
       - alert: AlloyRemoteWriteFailing

@@ -69,6 +69,10 @@ metadata:
   name: postgres-dev
   title: PostgreSQL (dev)
   description: Shared PostgreSQL in dev; each app gets its own database and login
+  annotations:
+    # Operate: the Argo CD application that runs it
+    argocd/app-name: postgres-dev
+    backstage.io/kubernetes-label-selector: cnpg.io/cluster=postgres
 spec:
   type: database
   owner: group:default/platform-team
