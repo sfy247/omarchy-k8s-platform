@@ -50,7 +50,7 @@
           "uid": "prometheus"
         },
         "query": {
-          "query": "label_values(cnpg_collector_up{cluster=~\"$cluster\"}, app)",
+          "query": "label_values(cnpg_pg_postmaster_start_time{cluster=~\"$cluster\"}, app)",
           "refId": "PromVar"
         },
         "refresh": 2,
@@ -129,7 +129,7 @@
     {
       "type": "stat",
       "title": "Up",
-      "description": "1 = every instance answers",
+      "description": "1 = every instance is scraped and answers queries",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -140,7 +140,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "min(cnpg_collector_up{cluster=~\"$cluster\", app=~\"$app\"})",
+          "expr": "min(up{cluster=~\"$cluster\", app=~\"$app\"}) * (1 - max(cnpg_collector_last_collection_error{cluster=~\"$cluster\", app=~\"$app\"}))",
           "legendFormat": "",
           "refId": "A",
           "instant": true,
@@ -156,6 +156,10 @@
               {
                 "color": "green",
                 "value": null
+              },
+              {
+                "color": "red",
+                "value": 0
               },
               {
                 "color": "green",

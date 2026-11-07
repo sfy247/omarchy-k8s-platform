@@ -49,8 +49,10 @@ groups:
   # CloudNativePG clusters (metrics labelled app=<cluster name> by their PodMonitor)
   - name: databases
     rules:
+      # The exporter's own scrape failing is AppTargetDown; this is the exporter
+      # failing to query PostgreSQL
       - alert: PostgresDown
-        expr: cnpg_collector_up == 0
+        expr: cnpg_collector_last_collection_error == 1
         for: 2m
         labels:
           severity: critical

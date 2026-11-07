@@ -318,8 +318,8 @@ def postgresql():
     l.add(text("**Shared PostgreSQL** (CloudNativePG). Each app has its own database: pick it in *Database*. "
                "Connections near the limit, a full volume, deadlocks and long transactions are what usually hurt apps."), 24, 2)
     l.row("Is it healthy?")
-    l.add(stat("Up", f'min(cnpg_collector_up{{{sel}}})', thresholds=[(1, "green")],
-               desc="1 = every instance answers"), 3, 4)
+    l.add(stat("Up", f'min(up{{{sel}}}) * (1 - max(cnpg_collector_last_collection_error{{{sel}}}))',
+               thresholds=[(0, "red"), (1, "green")], desc="1 = every instance is scraped and answers queries"), 3, 4)
     l.add(stat("Instances ready", f'sum(kube_pod_status_ready{{condition="true", cluster=~"$cluster", pod=~"$app-[0-9]+"}})'), 3, 4)
     l.add(stat("Connections used", f'sum(cnpg_backends_total{{{sel}}}) / max(cnpg_pg_settings_setting{{name="max_connections", {sel}}})',
                unit="percentunit", thresholds=[(0.6, "orange"), (0.8, "red")]), 3, 4)
@@ -358,7 +358,7 @@ def postgresql():
     l.add(logs("PostgreSQL logs (warnings and errors)",
                '{cluster=~"$cluster", pod=~"$app-[0-9]+", level=~"warn|warning|error|fatal|panic"}'), 24, 10)
     variables = [CLUSTER,
-                 prom_var("app", 'label_values(cnpg_collector_up{cluster=~"$cluster"}, app)', label="Postgres cluster", multi=False, include_all=False),
+                 prom_var("app", 'label_values(cnpg_pg_postmaster_start_time{cluster=~"$cluster"}, app)', label="Postgres cluster", multi=False, include_all=False),
                  prom_var("datname", 'label_values(cnpg_pg_database_size_bytes{cluster=~"$cluster", app=~"$app"}, datname)', label="Database")]
     return dashboard("postgresql", "PostgreSQL", l, variables, ["data"],
                      desc="Health, load and size of the shared PostgreSQL, per database")
