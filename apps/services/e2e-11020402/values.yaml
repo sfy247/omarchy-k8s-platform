@@ -16,3 +16,7 @@ metrics:
 resources:
   requests: { cpu: 50m, memory: 96Mi }
   limits: { memory: 256Mi }
+
+# Its own database on the shared Postgres; login by client certificate
+database:
+  enabled: true

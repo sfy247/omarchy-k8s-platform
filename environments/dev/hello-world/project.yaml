@@ -12,6 +12,9 @@ spec:
   destinations:
     - name: dev
       namespace: hello-world
+    # Each app's DatabaseRole and Database sit next to the Postgres cluster
+    - name: dev
+      namespace: postgres
   # Only so Argo CD can create the namespace (CreateNamespace=true)
   clusterResourceWhitelist:
     - { group: "", kind: Namespace }
@@ -22,5 +25,10 @@ spec:
     - { group: networking.k8s.io, kind: NetworkPolicy }
     - { group: gateway.networking.k8s.io, kind: HTTPRoute }
     - { group: monitoring.coreos.com, kind: PodMonitor }
+    # database.enabled: the app's client certificate, and its role and
+    # database next to the Postgres cluster
+    - { group: cert-manager.io, kind: Certificate }
+    - { group: postgresql.cnpg.io, kind: DatabaseRole }
+    - { group: postgresql.cnpg.io, kind: Database }
   orphanedResources:
     warn: true

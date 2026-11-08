@@ -20,6 +20,11 @@ issuer:
   name: lab-ca
   caSecretName: lab-ca
 
+# Private CA for Postgres certificate logins (server + per-app client certs)
+postgresCA:
+  enabled: true
+  issuer: postgres
+
 # mTLS listener where observability agents push telemetry (hub only).
 # Reached from other clusters over the kind Docker network at
 # https://<hostname>:<nodePort>; clients need a certificate from the lab CA.

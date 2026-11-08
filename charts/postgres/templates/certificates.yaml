@@ -1,0 +1,34 @@
+# Certificates from the platform's Postgres CA (ClusterIssuer, gateway add-on):
+#   server       what apps verify (sslmode=verify-full); also gives the instances the CA
+#   replication  streaming_replica's login; its ca.crt is the CA that client
+#                certificates must chain to
+{{- $n := .Values.name }}
+{{- $ns := .Release.Namespace }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ $n }}-server
+spec:
+  secretName: {{ $n }}-server
+  commonName: {{ $n }}-rw.{{ $ns }}.svc
+  dnsNames:
+    {{- range $svc := list "rw" "ro" "r" }}
+    - {{ $n }}-{{ $svc }}
+    - {{ $n }}-{{ $svc }}.{{ $ns }}
+    - {{ $n }}-{{ $svc }}.{{ $ns }}.svc
+    - {{ $n }}-{{ $svc }}.{{ $ns }}.svc.cluster.local
+    {{- end }}
+  usages: [server auth, digital signature, key encipherment]
+  privateKey: { algorithm: ECDSA, size: 256, rotationPolicy: Always }
+  issuerRef: { kind: ClusterIssuer, name: {{ .Values.certificates.issuer }} }
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ $n }}-replication
+spec:
+  secretName: {{ $n }}-replication
+  commonName: streaming_replica
+  usages: [client auth, digital signature, key encipherment]
+  privateKey: { algorithm: ECDSA, size: 256, rotationPolicy: Always }
+  issuerRef: { kind: ClusterIssuer, name: {{ .Values.certificates.issuer }} }

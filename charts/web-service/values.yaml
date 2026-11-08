@@ -55,11 +55,17 @@ metrics:
 # Own PostgreSQL database. The provisioning tooling creates the database, role
 # and the <name>-db Secret (libpq env: PGHOST, PGUSER, DATABASE_URL, ...).
 database:
+  # Access to the shared Postgres: a database, a role and a client certificate
+  # (templates/database.yaml); connection details arrive as libpq PG* variables
   enabled: false
-  # Where the shared Postgres runs (for the egress NetworkPolicy)
+  # Where the shared Postgres runs
   namespace: postgres
   cluster: postgres
   port: 5432
+  # ClusterIssuer of the platform's Postgres CA
+  issuer: postgres
+  # Where the client certificate is mounted
+  certPath: /etc/postgres-client
   clientLabel:
     key: lab/postgres-client
     value: "true"

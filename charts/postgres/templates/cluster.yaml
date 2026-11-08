@@ -1,4 +1,5 @@
-# Per-app databases and roles are created by the provisioning tooling, not here
+# Per-app roles and databases are DatabaseRole/Database resources, created by
+# each app's own chart (web-service, database.enabled); not here
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
@@ -9,12 +10,19 @@ spec:
   enableSuperuserAccess: false
   storage:
     size: {{ .Values.storage.size }}
+  # TLS from the platform's Postgres CA (certificates.yaml)
+  certificates:
+    serverTLSSecret: {{ .Values.name }}-server
+    serverCASecret: {{ .Values.name }}-server
+    clientCASecret: {{ .Values.name }}-replication
+    replicationTLSSecret: {{ .Values.name }}-replication
   resources:
     {{- toYaml .Values.resources | nindent 4 }}
   postgresql:
     parameters:
       password_encryption: scram-sha-256
     pg_hba:
-      # Network logins: TLS + SCRAM password only; plaintext is refused
-      - hostssl all all all scram-sha-256
+      # Network logins: TLS + a client certificate whose name is the role.
+      # No passwords; plaintext is refused
+      - hostssl all all all cert
       - hostnossl all all all reject

@@ -1,0 +1,39 @@
+{{- if .Values.postgresCA.enabled }}
+# A private CA used only by Postgres: it signs the server certificate and
+# every app's client certificate. Apps log in with a certificate whose name is
+# their role (no passwords); each certificate Secret also carries this CA, so
+# apps verify the server too (sslmode=verify-full). Separate from the lab CA,
+# which is name-constrained to the lab domain and trusted by your machine.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: {{ .Values.postgresCA.issuer }}-bootstrap
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ .Values.postgresCA.issuer }}-ca
+  # ClusterIssuers read their CA from cert-manager's namespace
+  namespace: cert-manager
+spec:
+  isCA: true
+  commonName: Postgres CA
+  secretName: {{ .Values.postgresCA.issuer }}-ca
+  duration: 87600h # 10 years
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    kind: ClusterIssuer
+    name: {{ .Values.postgresCA.issuer }}-bootstrap
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: {{ .Values.postgresCA.issuer }}
+spec:
+  ca:
+    secretName: {{ .Values.postgresCA.issuer }}-ca
+{{- end }}

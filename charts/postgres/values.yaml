@@ -3,6 +3,9 @@ name: postgres
 instances: 1
 storage:
   size: 1Gi
+# ClusterIssuer of the platform's Postgres CA (gateway add-on)
+certificates:
+  issuer: postgres
 resources:
   requests: { cpu: 100m, memory: 256Mi }
   limits: { memory: 512Mi }

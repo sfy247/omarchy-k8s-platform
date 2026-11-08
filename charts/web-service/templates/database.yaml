@@ -1,0 +1,53 @@
+{{- if .Values.database.enabled }}
+{{- $db := .Values.database }}
+{{- $role := include "web-service.dbRole" . }}
+# Database access, declared by the app (database.enabled), no passwords:
+#   Certificate   a client certificate whose name is the app's role, from the
+#                 platform's Postgres CA (its Secret also holds the CA, to
+#                 verify the server)
+#   DatabaseRole  the role, login by certificate only
+#   Database      the app's own database, owned by its role
+# The role and database live next to the Postgres cluster; both are kept
+# (retain) if database access is ever switched off.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "web-service.name" . }}-db
+  labels:
+    {{- include "web-service.labels" . | nindent 4 }}
+spec:
+  secretName: {{ include "web-service.name" . }}-db-cert
+  commonName: {{ $role }}
+  usages: [client auth, digital signature, key encipherment]
+  # RSA: every Postgres client library reads it
+  privateKey: { algorithm: RSA, size: 2048, encoding: PKCS8, rotationPolicy: Always }
+  issuerRef: { kind: ClusterIssuer, name: {{ $db.issuer }} }
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: {{ $role | replace "_" "-" }}
+  namespace: {{ $db.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  cluster: { name: {{ $db.cluster }} }
+  name: {{ $role }}
+  login: true
+  disablePassword: true
+  databaseRoleReclaimPolicy: retain
+  comment: "{{ .Release.Namespace }}/{{ include "web-service.name" . }} (certificate login)"
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: {{ $role | replace "_" "-" }}
+  namespace: {{ $db.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  cluster: { name: {{ $db.cluster }} }
+  name: {{ $role }}
+  owner: {{ $role }}
+  databaseReclaimPolicy: retain
+{{- end }}

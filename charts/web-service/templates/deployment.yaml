@@ -28,14 +28,18 @@ spec:
           env:
             - name: PORT
               value: {{ .Values.containerPort | quote }}
-          {{- if .Values.database.enabled }}
-          # Written by the provisioning tooling; optional so the pod can start
-          # before the database exists (it is restarted once it does)
-          envFrom:
-            - secretRef:
-                name: {{ include "web-service.name" . }}-db
-                optional: true
-          {{- end }}
+            {{- if .Values.database.enabled }}
+            {{- $db := .Values.database }}
+            # libpq-style connection settings; login is by client certificate
+            - { name: PGHOST, value: "{{ $db.cluster }}-rw.{{ $db.namespace }}.svc" }
+            - { name: PGPORT, value: {{ $db.port | quote }} }
+            - { name: PGDATABASE, value: {{ include "web-service.dbRole" . | quote }} }
+            - { name: PGUSER, value: {{ include "web-service.dbRole" . | quote }} }
+            - { name: PGSSLMODE, value: verify-full }
+            - { name: PGSSLCERT, value: "{{ $db.certPath }}/tls.crt" }
+            - { name: PGSSLKEY, value: "{{ $db.certPath }}/tls.key" }
+            - { name: PGSSLROOTCERT, value: "{{ $db.certPath }}/ca.crt" }
+            {{- end }}
           ports:
             - name: http
               containerPort: {{ .Values.containerPort }}
@@ -53,7 +57,19 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+            {{- if .Values.database.enabled }}
+            - name: postgres-client
+              mountPath: {{ .Values.database.certPath }}
+              readOnly: true
+            {{- end }}
       volumes:
+        {{- if .Values.database.enabled }}
+        # The app's client certificate, its key and the CA (renewed by cert-manager)
+        - name: postgres-client
+          secret:
+            secretName: {{ include "web-service.name" . }}-db-cert
+            defaultMode: 0440
+        {{- end }}
         # Writable scratch space, since the root filesystem is read-only
         - name: tmp
           emptyDir:

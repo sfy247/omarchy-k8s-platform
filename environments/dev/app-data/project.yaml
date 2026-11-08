@@ -19,5 +19,7 @@ spec:
     - { group: postgresql.cnpg.io, kind: Cluster }
     - { group: networking.k8s.io, kind: NetworkPolicy }
     - { group: monitoring.coreos.com, kind: PodMonitor }
+    # Server and replication certificates from the Postgres CA
+    - { group: cert-manager.io, kind: Certificate }
   orphanedResources:
     warn: true
