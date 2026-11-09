@@ -20,3 +20,7 @@ resources:
 # Its own database on the shared Postgres; login by client certificate
 database:
   enabled: true
+
+# Apply db/migrations before each rollout (migrate job, same tag as the app)
+migrations:
+  enabled: true
