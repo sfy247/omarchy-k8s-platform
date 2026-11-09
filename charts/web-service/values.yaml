@@ -69,3 +69,15 @@ database:
   clientLabel:
     key: lab/postgres-client
     value: "true"
+
+# Database migrations before each rollout (templates/migrations.yaml). Needs
+# database.enabled. The image defaults to <image.repository>/migrations at the
+# app's tag: the shared CI builds it from db/migrations.
+migrations:
+  enabled: false
+  image: ""
+  backoffLimit: 0
+  timeoutSeconds: 600
+  resources:
+    requests: { cpu: 10m, memory: 32Mi }
+    limits: { memory: 128Mi }

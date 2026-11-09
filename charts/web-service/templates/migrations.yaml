@@ -1,0 +1,98 @@
+{{- if .Values.migrations.enabled }}
+{{- if not .Values.database.enabled }}
+{{- fail "migrations.enabled needs database.enabled" }}
+{{- end }}
+{{- $db := .Values.database }}
+{{- $name := include "web-service.name" . }}
+# Database migrations, before each rollout. Argo CD runs this Job in sync wave
+# 1: after the database, role and certificate (wave 0), before the Deployment
+# (wave 2). If it fails, the sync stops and the running version stays.
+# The image is the service's migrations image (platform migrator + its
+# db/migrations), tagged like the app; it logs in exactly like the app.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $name }}-migrate
+  labels:
+    app.kubernetes.io/name: {{ $name }}-migrate
+    app.kubernetes.io/component: migrate
+    app.kubernetes.io/part-of: {{ $name }}
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/sync-wave: "1"
+    # Keep the last run (and its logs) until the next one
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: {{ .Values.migrations.backoffLimit }}
+  activeDeadlineSeconds: {{ .Values.migrations.timeoutSeconds }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ $name }}-migrate
+        app.kubernetes.io/component: migrate
+        {{ $db.clientLabel.key }}: {{ $db.clientLabel.value | quote }}
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: migrate
+          image: "{{ .Values.migrations.image | default (printf "%s/migrations" .Values.image.repository) }}:{{ .Values.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          env:
+            - { name: PGHOST, value: "{{ $db.cluster }}-rw.{{ $db.namespace }}.svc" }
+            - { name: PGPORT, value: {{ $db.port | quote }} }
+            - { name: PGDATABASE, value: {{ include "web-service.dbRole" . | quote }} }
+            - { name: PGUSER, value: {{ include "web-service.dbRole" . | quote }} }
+            - { name: PGSSLMODE, value: verify-full }
+            - { name: PGSSLCERT, value: "{{ $db.certPath }}/tls.crt" }
+            - { name: PGSSLKEY, value: "{{ $db.certPath }}/tls.key" }
+            - { name: PGSSLROOTCERT, value: "{{ $db.certPath }}/ca.crt" }
+            - { name: HOME, value: /tmp }
+          resources:
+            {{- toYaml .Values.migrations.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+            - { name: postgres-client, mountPath: {{ $db.certPath }}, readOnly: true }
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 16Mi }
+        - name: postgres-client
+          secret:
+            secretName: {{ $name }}-db-cert
+            defaultMode: 0440
+---
+# The migrate pod talks only to DNS and Postgres; nothing talks to it
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $name }}-migrate
+  labels:
+    {{- include "web-service.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $name }}-migrate
+  policyTypes: [Ingress, Egress]
+  egress:
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - { port: 53, protocol: UDP }
+        - { port: 53, protocol: TCP }
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $db.namespace }}
+          podSelector:
+            matchLabels:
+              cnpg.io/cluster: {{ $db.cluster }}
+      ports:
+        - { port: {{ $db.port }}, protocol: TCP }
+{{- end }}
