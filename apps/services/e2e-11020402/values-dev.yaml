@@ -1,6 +1,6 @@
 # dev overrides. image.tag is the image running here: the service's CI commits
 # each new sha-<commit> tag to this file after publishing it.
 image:
-  tag: sha-a4b3f701bbbed9efc5090099ccf3ac3fe2d78956
+  tag: sha-8fcb24e896eac2ea6c9ae2ea01a4c11354f6abf3
   repository: ghcr.io/sfy247/e2e-11020402
 replicaCount: 2
